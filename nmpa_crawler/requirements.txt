@@ -1,0 +1,15 @@
+# Core
+pandas>=2.0.0
+openpyxl>=3.1.0
+PyYAML>=6.0.1
+tqdm>=4.66.0
+tenacity>=8.2.2
+rich>=13.7.0
+
+# Browser automation (default engine, avoids JS reverse)
+selenium>=4.21.0
+undetected-chromedriver>=3.5.5
+selenium-wire>=5.1.0
+
+# Optional HTTP engine (if you later add sign算法)
+httpx>=0.27.0

@@ -1,0 +1,33 @@
+# NMPA 爬虫配置
+mode: browser         # 可选: browser (推荐, 默认) | http (需sign算法，实验性)
+headless: true        # 浏览器是否无头运行
+max_pages: 50         # 每个查询最大翻页数 (建议按需要调整)
+page_size: 30         # 每页条数 (10/20/30等, 由站点决定，30较实用)
+delay_min_ms: 600     # 每次请求之间的最小延迟 (毫秒)
+delay_max_ms: 1500    # 每次请求之间的最大延迟 (毫秒)
+retry: 3              # 请求失败重试次数
+export_format: excel  # excel | csv | both
+output_dir: outputs   # 导出目录
+
+# 代理设置 (如需)
+proxy:
+  http: null          # 例如: http://user:pass@host:port
+  https: null         # 例如: http://user:pass@host:port
+
+# 采集任务定义
+jobs:
+  # 例如：同时采集境内H与S、境外H与S
+  - dataset: domestic            # domestic(境内生产药品) | imported(境外生产药品)
+    code_prefix: "国药准字H"     # H: 化药；S: 生物制品
+  - dataset: domestic
+    code_prefix: "国药准字S"
+  - dataset: imported
+    code_prefix: "国药准字H"
+  - dataset: imported
+    code_prefix: "国药准字S"
+
+# 仅在 HTTP 引擎中使用: (browser模式忽略)
+http_engine:
+  # 如站点sign算法变更, 可在此调整或替换外部JS文件
+  node_path: "node"            # 系统内 Node 可执行文件名或绝对路径
+  sign_js: "http_engine/nmpa_js/main.js"
