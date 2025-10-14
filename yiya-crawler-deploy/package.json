@@ -1,0 +1,28 @@
+{
+  "name": "yiya-crawler-deploy",
+  "version": "1.0.0",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node main.js",
+    "dev": "node main.js"
+  },
+  "keywords": ["crawler", "nmpa", "nodejs"],
+  "author": "",
+  "license": "ISC",
+  "description": "Yiya-crawler deployment for NMPA drug data extraction",
+  "dependencies": {
+    "crawlee": "^3.13.3",
+    "dotenv": "^16.5.0",
+    "fs-extra": "^11.3.0",
+    "puppeteer": "^24.8.1",
+    "winston": "^3.17.0",
+    "ali-oss": "^6.22.0",
+    "axios": "^1.9.0",
+    "mysql2": "^3.14.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

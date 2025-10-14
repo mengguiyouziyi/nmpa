@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  yiya-crawler:
+    build: .
+    container_name: yiya-crawler
+    volumes:
+      - ./outputs:/app/outputs
+      - ./downloads:/app/downloads
+      - ./logs:/app/logs
+    environment:
+      - NODE_ENV=production
+      - PUPPETEER_HEADLESS=true
+    restart: unless-stopped
+    networks:
+      - crawler-network
+
+  # 可选：添加Redis用于任务队列
+  redis:
+    image: redis:7-alpine
+    container_name: yiya-redis
+    volumes:
+      - redis-data:/data
+    networks:
+      - crawler-network
+
+  # 可选：添加数据库存储
+  mysql:
+    image: mysql:8
+    container_name: yiya-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: yiya_crawler
+      MYSQL_USER: yiya
+      MYSQL_PASSWORD: yiya123
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - crawler-network
+
+networks:
+  crawler-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  mysql-data:

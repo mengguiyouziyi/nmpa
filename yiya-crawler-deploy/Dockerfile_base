@@ -1,0 +1,65 @@
+FROM node:22-slim
+# 安装 Puppeteer 运行 Chromium 所需的依赖
+RUN apt-get update && apt-get install -y \
+    wget \
+    ca-certificates \
+    fonts-liberation \
+    libappindicator3-1 \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libgdk-pixbuf2.0-0 \
+    libnspr4 \
+    libnss3 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    xdg-utils \
+    --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
+
+# RUN npx puppeteer browsers install chrome
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y chromium chromium-sandbox && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
+# 安装中文字体需要的依赖包
+RUN apt-get update && \
+    apt-get install -y xfonts-utils fontconfig locales zip unzip wget
+
+RUN locale-gen zh_CN.UTF-8 && \
+    locale-gen && \
+    wget https://yiya-dev.oss-cn-hangzhou.aliyuncs.com/drivers/fonts.zip && unzip fonts.zip && cp -r fonts/* /usr/share/fonts/ && \
+    cd /usr/share/fonts/ && mkfontscale && mkfontdir && fc-cache && fc-list :lang=zh
+
+ENV LANG=zh_CN.UTF-8
+ENV LANGUAGE=zh_CN:zh
+
+# 可选：增加中文字体支持（避免中文乱码）
+# RUN apt-get install -y fonts-noto-cjk && rm -rf /var/lib/apt/lists/*
+
+# 设置工作目录
+WORKDIR /app
+RUN pwd
+
+# 复制依赖文件
+COPY package*.json ./
+
+# 安装项目依赖包
+RUN npm install
+
+# 复制项目代码
+COPY . .
+
+# Puppeteer 默认下载 Chromium，如果你不想重复下载可提前设置缓存
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# 暴露端口（如果需要 Web UI）
+EXPOSE 3000
+
+# 默认命令（假设你的入口是 crawler.js）
+CMD [ "node", "main.js" ]

@@ -1,0 +1,15 @@
+{
+  "name": "nmpa-crawlee-crawler",
+  "version": "1.0.0",
+  "description": "NMPA药品数据爬虫 - 基于Crawlee框架",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "crawlee": "^3.13.3",
+    "playwright": "^1.48.2",
+    "fs-extra": "^11.3.0"
+  }
+}
