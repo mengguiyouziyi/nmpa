@@ -1,0 +1,29 @@
+{
+  "timestamp": "2025-10-14T11:21:04.639Z",
+  "totalPages": 2,
+  "successPages": 2,
+  "totalDrugs": 27,
+  "outputDir": "outputs",
+  "results": [
+    {
+      "url": "https://www.nmpa.gov.cn/yaopin/ypggtg/index.html",
+      "status": 200,
+      "contentLength": 21474,
+      "drugsFound": 8,
+      "savedFile": "outputs/page_20251014T112101_200.html",
+      "success": true
+    },
+    {
+      "url": "https://www.nmpa.gov.cn/yaopin/ypjgdt/index.html",
+      "status": 200,
+      "contentLength": 20622,
+      "drugsFound": 19,
+      "savedFile": "outputs/page_20251014T112104_200.html",
+      "success": true
+    }
+  ],
+  "summary": {
+    "successRate": 100,
+    "avgDrugsPerPage": 13.5
+  }
+}
