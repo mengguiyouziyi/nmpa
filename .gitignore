@@ -1,0 +1,8 @@
+# Internal/project-specific ignores
+yiya-crawler-deploy/
+yiya-crawler-main-d99c5446ee89cfc9849702b6d1f2346917e63659/
+yiya-crawler-main-d99c5446ee89cfc9849702b6d1f2346917e63659.zip
+nmpa_crawler_nodejs/outputs/
+nmpa_crawler_nodejs/storage/
+nmpa_crawler_nodejs/logs/
+nmpa_crawler_nodejs/playwright/.cache/
