@@ -24,6 +24,12 @@ node hybrid_main.js      # 混合策略版 - 简化高效
 node data_main.js        # 数据专用版 - 专门优化
 ```
 
+### 抓取标准数据集（国内 / 进口）
+```bash
+npm run dataset
+```
+运行完毕后会在 `outputs/datasets` 下生成 `国内H.jsonl`、`国内S.jsonl`、`进口H.jsonl`、`进口S.jsonl` 四个 JSONL 文件。
+
 ## 📊 输出格式
 
 ```json
@@ -42,7 +48,12 @@ nmpa_crawler_nodejs/
 ├── crawlee_main.js         # Crawlee框架版
 ├── outputs/                # 输出目录
 │   ├── drugs_super_*.jsonl
-│   └── drugs_all.jsonl
+│   ├── drugs_all.jsonl
+│   └── datasets/           # 标准数据集输出
+│       ├── 国内H.jsonl
+│       ├── 国内S.jsonl
+│       ├── 进口H.jsonl
+│       └── 进口S.jsonl
 ├── downloads/              # 临时文件
 ├── USAGE_GUIDE.md          # 详细使用指南
 ├── FINAL_SOLUTION_SUMMARY.md # 完整技术方案
