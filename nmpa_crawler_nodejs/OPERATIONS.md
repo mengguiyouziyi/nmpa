@@ -42,9 +42,12 @@ NMPA_DATASETS=domestic-h,imported node super_main.js
 | `NMPA_DOMESTIC_SEGMENT_LIMIT` | 单次搜索允许的最大记录数，超限会继续拆分（默认 `9000`） |
 | `NMPA_DOMESTIC_SEGMENT_DEPTH` | 拆分深度（默认 `4`，即 `H → H0 → H20 → H200` 最多 4 层） |
 | `NMPA_SEGMENT_DIGITS` | 拆分时使用的后缀字符，默认 `0-9` |
-| `NMPA_SEGMENT_DELAY_MIN/MAX` | 拆分请求之间的休眠区间（毫秒） |
-| `NMPA_PAGE_DELAY_MIN/MAX` | 每页之间的休眠区间（毫秒） |
-| `NMPA_DETAIL_DELAY_MIN/MAX` | 拉详情前的休眠区间（毫秒） |
+| `NMPA_SEGMENT_DELAY_MIN/MAX` | 拆分请求之间的休眠区间（毫秒，默认 `1200 / 2800`） |
+| `NMPA_PAGE_DELAY_MIN/MAX` | 每页之间的休眠区间（毫秒，默认 `450 / 900`） |
+| `NMPA_DETAIL_DELAY_MIN/MAX` | 批量拉详情前的休眠区间（毫秒，默认 `250 / 600`） |
+| `NMPA_SEGMENT_PAUSE_MIN/MAX` | 拆分段之间的额外暂停（毫秒，默认 `2000 / 5000`） |
+| `NMPA_LIST_DELAY_MIN/MAX` | 每次列表请求前的随机延时（毫秒，默认 `900 / 2000`） |
+| `NMPA_RECORD_DELAY_MIN/MAX` | 每条详情写入后的间隔（毫秒，默认 `80 / 180`） |
 | `NMPA_LIST_RETRY_LIMIT` | 列表接口重试次数 |
 | `NMPA_DETAIL_RETRY_LIMIT` | 详情接口补偿次数 |
 
