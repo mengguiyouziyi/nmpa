@@ -1,0 +1,13 @@
+# Node modules & build cache
+node_modules/
+
+# Local runtime artifacts
+outputs/
+storage/
+logs/
+*.log
+
+# Playwright downloads
+playwright/.cache/
+
+legacy/
