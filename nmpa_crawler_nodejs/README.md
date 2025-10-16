@@ -48,9 +48,12 @@ outputs/datasets/
 | `NMPA_DOMESTIC_SEGMENT_DEPTH` | 拆分最大深度 | `4` |
 | `NMPA_PROXY` / `HTTP(S)_PROXY` | 代理地址（支持 `http://user:pass@host:port`） | 无 |
 | `NMPA_PROXY_USERNAME` / `NMPA_PROXY_PASSWORD` | 当代理账号信息不能写进 URL 时使用 | 无 |
-| `NMPA_SEGMENT_DELAY_MIN/MAX` | 拆分请求之间的等待区间（毫秒） | `400 / 1200` |
-| `NMPA_PAGE_DELAY_MIN/MAX` | 翻页之间的等待区间（毫秒） | `180 / 420` |
-| `NMPA_DETAIL_DELAY_MIN/MAX` | 批量拉详情前的等待区间（毫秒） | `100 / 220` |
+| `NMPA_SEGMENT_DELAY_MIN/MAX` | 拆分请求之间的等待区间（毫秒） | `1200 / 2800` |
+| `NMPA_PAGE_DELAY_MIN/MAX` | 翻页之间的等待区间（毫秒） | `450 / 900` |
+| `NMPA_DETAIL_DELAY_MIN/MAX` | 批量拉详情前的等待区间（毫秒） | `250 / 600` |
+| `NMPA_SEGMENT_PAUSE_MIN/MAX` | 拆分段之间的休眠区间（毫秒） | `2000 / 5000` |
+| `NMPA_LIST_DELAY_MIN/MAX` | 列表请求前的随机延时（毫秒） | `900 / 2000` |
+| `NMPA_RECORD_DELAY_MIN/MAX` | 每条详情写入后的间隔（毫秒） | `80 / 180` |
 | `NMPA_LIST_RETRY_LIMIT` | 列表请求重试次数 | `3` |
 | `NMPA_DETAIL_RETRY_LIMIT` | 详情补偿重试次数 | `2` |
 

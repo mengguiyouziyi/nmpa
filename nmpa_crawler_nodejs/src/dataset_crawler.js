@@ -23,20 +23,28 @@ const DOMESTIC_SEGMENT_LIMIT = parseInt(process.env.NMPA_DOMESTIC_SEGMENT_LIMIT 
 const DOMESTIC_MAX_SEGMENT_DEPTH = parseInt(process.env.NMPA_DOMESTIC_SEGMENT_DEPTH ?? `${DEFAULT_SEGMENT_DEPTH}`, 10);
 
 const SEGMENT_DELAY_RANGE = createRange(
-    parseInt(process.env.NMPA_SEGMENT_DELAY_MIN ?? '400', 10),
-    parseInt(process.env.NMPA_SEGMENT_DELAY_MAX ?? '1200', 10),
+    parseInt(process.env.NMPA_SEGMENT_DELAY_MIN ?? '1200', 10),
+    parseInt(process.env.NMPA_SEGMENT_DELAY_MAX ?? '2800', 10),
 );
 const SEGMENT_PAUSE_RANGE = createRange(
-    parseInt(process.env.NMPA_SEGMENT_PAUSE_MIN ?? '800', 10),
-    parseInt(process.env.NMPA_SEGMENT_PAUSE_MAX ?? '1600', 10),
+    parseInt(process.env.NMPA_SEGMENT_PAUSE_MIN ?? '2000', 10),
+    parseInt(process.env.NMPA_SEGMENT_PAUSE_MAX ?? '5000', 10),
 );
 const PAGE_DELAY_RANGE = createRange(
-    parseInt(process.env.NMPA_PAGE_DELAY_MIN ?? '180', 10),
-    parseInt(process.env.NMPA_PAGE_DELAY_MAX ?? '420', 10),
+    parseInt(process.env.NMPA_PAGE_DELAY_MIN ?? '450', 10),
+    parseInt(process.env.NMPA_PAGE_DELAY_MAX ?? '900', 10),
 );
 const DETAIL_DELAY_RANGE = createRange(
-    parseInt(process.env.NMPA_DETAIL_DELAY_MIN ?? '100', 10),
-    parseInt(process.env.NMPA_DETAIL_DELAY_MAX ?? '220', 10),
+    parseInt(process.env.NMPA_DETAIL_DELAY_MIN ?? '250', 10),
+    parseInt(process.env.NMPA_DETAIL_DELAY_MAX ?? '600', 10),
+);
+const LIST_DELAY_RANGE = createRange(
+    parseInt(process.env.NMPA_LIST_DELAY_MIN ?? '900', 10),
+    parseInt(process.env.NMPA_LIST_DELAY_MAX ?? '2000', 10),
+);
+const RECORD_DELAY_RANGE = createRange(
+    parseInt(process.env.NMPA_RECORD_DELAY_MIN ?? '80', 10),
+    parseInt(process.env.NMPA_RECORD_DELAY_MAX ?? '180', 10),
 );
 
 const LIST_RETRY_LIMIT = parseInt(process.env.NMPA_LIST_RETRY_LIMIT ?? '3', 10);
@@ -110,6 +118,7 @@ async function writeJsonLine(stream, data) {
 }
 
 async function fetchListPage(page, { itemId, searchValue, pageNum }, attempt = 0) {
+    await sleepRange(LIST_DELAY_RANGE);
     const result = await page.evaluate(async (params) => {
         try {
             const raw = await window.pajax.hasTokenGet(window.api.queryList, {
@@ -187,6 +196,7 @@ async function fetchDetailsBatch(page, itemId, recordIds, concurrency = 3) {
 async function fetchDetailWithRetry(page, itemId, id, retries = DETAIL_RETRY_LIMIT) {
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {
+            await sleepRange(DETAIL_DELAY_RANGE);
             const payload = await page.evaluate(async (params) => {
                 try {
                     const raw = await window.pajax.hasTokenGet(window.api.queryDetail, {
@@ -306,6 +316,7 @@ async function crawlDomesticCategory(page, { baseSearch, outputName }, logger) {
 
                     await writeJsonLine(stream, record);
                     totalWritten += 1;
+                    await sleepRange(RECORD_DELAY_RANGE);
                 }
 
                 if (pageNum % 50 === 0 || pageNum === totalPages) {
@@ -395,6 +406,7 @@ async function crawlImported(page, logger) {
                     await writeJsonLine(streamS, baseRecord);
                     writtenS += 1;
                 }
+                await sleepRange(RECORD_DELAY_RANGE);
             }
 
             if (pageNum % 50 === 0 || pageNum === totalPages) {
