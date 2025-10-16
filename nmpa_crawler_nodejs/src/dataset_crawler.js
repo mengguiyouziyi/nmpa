@@ -12,8 +12,10 @@ const OUTPUT_ROOT = path.resolve('outputs/datasets');
 const DOMESTIC_ITEM_ID = 'ff80808183cad75001840881f848179f';
 const IMPORTED_ITEM_ID = 'ff80808183cad7500184088665711800';
 
-const DEFAULT_SEGMENT_LIMIT = 9000;
+const PAGE_SIZE = Math.max(1, parseInt(process.env.NMPA_PAGE_SIZE ?? '20', 10));
+const DOMESTIC_MAX_PAGES = Math.max(1, parseInt(process.env.NMPA_DOMESTIC_MAX_PAGES ?? '500', 10));
 const DEFAULT_SEGMENT_DEPTH = 4;
+const DEFAULT_SEGMENT_LIMIT = PAGE_SIZE * DOMESTIC_MAX_PAGES;
 const SEGMENT_DIGITS = (process.env.NMPA_SEGMENT_DIGITS || '0,1,2,3,4,5,6,7,8,9')
     .split(',')
     .map((value) => value.trim())
@@ -126,7 +128,7 @@ async function fetchListPage(page, { itemId, searchValue, pageNum }, attempt = 0
                 isSenior: 'N',
                 searchValue: params.searchValue,
                 pageNum: params.pageNum,
-                pageSize: 20,
+                pageSize: PAGE_SIZE,
             });
             return { ok: true, payload: raw };
         } catch (error) {
@@ -153,7 +155,7 @@ async function fetchListPage(page, { itemId, searchValue, pageNum }, attempt = 0
     return {
         searchValue,
         pageNum,
-        pageSize: payload.pageSize || (payload.list?.length ?? 20),
+        pageSize: payload.pageSize || PAGE_SIZE,
         total: payload.total || 0,
         list: payload.list,
     };
@@ -234,20 +236,21 @@ async function collectDomesticSegments(page, baseSearch, logger) {
 
         await sleepRange(SEGMENT_DELAY_RANGE);
         const payload = await fetchListPage(page, { itemId: DOMESTIC_ITEM_ID, searchValue, pageNum: 1 });
-        const { total, pageSize } = payload;
+        const total = payload.total;
         if (!total) {
             logger.info(`${searchValue}: 无数据，跳过`);
             return;
         }
 
-        const totalPages = Math.ceil(total / pageSize);
-        if (total <= DOMESTIC_SEGMENT_LIMIT || depth >= DOMESTIC_MAX_SEGMENT_DEPTH) {
+        const effectivePageSize = payload.pageSize || PAGE_SIZE;
+        const totalPages = Math.ceil(total / Math.max(1, effectivePageSize));
+        if (((total <= DOMESTIC_SEGMENT_LIMIT) && (totalPages <= DOMESTIC_MAX_PAGES)) || depth >= DOMESTIC_MAX_SEGMENT_DEPTH) {
             segments.push({
                 searchValue,
                 total,
-                pageSize,
+                pageSize: effectivePageSize,
                 totalPages,
-                firstPayload: payload,
+                firstPayload: { ...payload, pageSize: effectivePageSize },
             });
             logger.info(`${searchValue}: ${total} 条，使用当前检索段（共 ${totalPages} 页）`);
             return;
@@ -361,7 +364,8 @@ async function crawlImported(page, logger) {
             }
 
             if (totalPages === null) {
-                totalPages = Math.ceil((payload.total || payload.list.length) / payload.pageSize);
+                const effectivePageSize = payload.pageSize || PAGE_SIZE;
+                totalPages = Math.ceil((payload.total || payload.list.length) / Math.max(1, effectivePageSize));
                 logger.info(`进口药品: 计划抓取 ${payload.total || 0} 条数据，共 ${totalPages} 页`);
             }
 
