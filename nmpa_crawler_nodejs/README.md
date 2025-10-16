@@ -44,7 +44,9 @@ outputs/datasets/
 | 变量 | 说明 | 默认值 |
 | --- | --- | --- |
 | `NMPA_DATASETS` | 指定要抓取的数据集，逗号分隔（可选值：`domestic-h`, `domestic-s`, `imported`） | `domestic-h,domestic-s,imported` |
-| `NMPA_DOMESTIC_SEGMENT_LIMIT` | 单段最大记录数，超过自动继续拆分 | `9000` |
+| `NMPA_PAGE_SIZE` | 每页请求的记录数（可设为 20 / 100 等） | `20` |
+| `NMPA_DOMESTIC_MAX_PAGES` | 单段允许的最大页数 | `500` |
+| `NMPA_DOMESTIC_SEGMENT_LIMIT` | 单段最大记录数，默认等于 `PAGE_SIZE × MAX_PAGES` | `10000` |
 | `NMPA_DOMESTIC_SEGMENT_DEPTH` | 拆分最大深度 | `4` |
 | `NMPA_PROXY` / `HTTP(S)_PROXY` | 代理地址（支持 `http://user:pass@host:port`） | 无 |
 | `NMPA_PROXY_USERNAME` / `NMPA_PROXY_PASSWORD` | 当代理账号信息不能写进 URL 时使用 | 无 |

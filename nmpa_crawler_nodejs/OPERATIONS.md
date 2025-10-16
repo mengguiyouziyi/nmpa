@@ -39,7 +39,9 @@ NMPA_DATASETS=domestic-h,imported node super_main.js
 
 | 变量 | 说明 |
 | --- | --- |
-| `NMPA_DOMESTIC_SEGMENT_LIMIT` | 单次搜索允许的最大记录数，超限会继续拆分（默认 `9000`） |
+| `NMPA_PAGE_SIZE` | 每页请求的记录数（默认 `20`，可尝试 `100`） |
+| `NMPA_DOMESTIC_MAX_PAGES` | 单段允许的最大页数（默认 `500`） |
+| `NMPA_DOMESTIC_SEGMENT_LIMIT` | 单次搜索允许的最大记录数（默认 `10000`，即 `PAGE_SIZE × MAX_PAGES`） |
 | `NMPA_DOMESTIC_SEGMENT_DEPTH` | 拆分深度（默认 `4`，即 `H → H0 → H20 → H200` 最多 4 层） |
 | `NMPA_SEGMENT_DIGITS` | 拆分时使用的后缀字符，默认 `0-9` |
 | `NMPA_SEGMENT_DELAY_MIN/MAX` | 拆分请求之间的休眠区间（毫秒，默认 `1200 / 2800`） |
