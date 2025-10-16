@@ -1,15 +1,35 @@
 {
-  "name": "nmpa-crawlee-crawler",
-  "version": "1.0.0",
-  "description": "NMPA药品数据爬虫 - 基于Crawlee框架",
-  "main": "main.js",
+  "name": "nmpa-advanced-crawler",
+  "version": "2.0.0",
+  "description": "Advanced NMPA crawler with search API cracking - Based on Crawlee + Python破解逻辑",
+  "main": "src/main.js",
   "type": "module",
   "scripts": {
-    "start": "node main.js"
+    "start": "node src/main.js",
+    "dev": "node --watch src/main.js",
+    "test-signature": "node src/utils/signature-tester.js",
+    "install-deps": "npm install && npx playwright install",
+    "dataset": "node src/dataset_crawler.js"
   },
   "dependencies": {
     "crawlee": "^3.13.3",
     "playwright": "^1.48.2",
-    "fs-extra": "^11.3.0"
-  }
+    "fs-extra": "^11.3.0",
+    "crypto-js": "^4.2.0",
+    "uuid": "^9.0.1",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  },
+  "keywords": [
+    "nmpa",
+    "crawler",
+    "pharmaceutical",
+    "search",
+    "api",
+    "cracking"
+  ],
+  "author": "NMPA Advanced Crawler Team",
+  "license": "MIT"
 }
