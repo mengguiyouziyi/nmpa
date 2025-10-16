@@ -1,128 +1,107 @@
-# NMPA药品数据爬虫 - Node.js实现
+# NMPA 药品数据爬虫（Node.js 版）
 
-基于Node.js和Playwright的NMPA（国家药品监督管理局）药品数据爬虫，专门用于提取国药准字格式的药品信息。
+该项目基于 Playwright + Crawlee，对国家药监局数据查询系统的 **真实接口** 进行自动化抓取，能够稳定拆分并获取 `国内/进口` 药品的“国药准字”数据集。
 
-## 🎯 项目特色
+## ✨ 亮点能力
 
-- ✅ **智能绕过412防护** - 多层策略突破反爬虫机制
-- ✅ **高效数据提取** - 专门针对国药准字格式优化
-- ✅ **反检测技术** - User-Agent轮换、请求头伪装、JavaScript反检测
-- ✅ **自动化流程** - 智能链接发现和跟进机制
-- ✅ **标准化输出** - JSONL格式，符合目标要求
+- **动态关键词拆分**：自动判断 `国药准字H / S` 的分段粒度，避免 1000 页限制。
+- **详情补偿机制**：列表拉取失败或详情 403 时会自动退避重试，并单条补齐缺失数据。
+- **代理支持**：通过环境变量即可注入中国大陆出口代理（HTTP/HTTPS/SOCKS）。
+- **可插拔配置**：数据集清单、拆分阈值、节奏控制等均可通过环境变量细调。
+- **标准化输出**：默认写入 `outputs/datasets` 目录的 4 个 JSONL 文件，与 `nmpa_data` 格式保持一致。
 
-## 🚀 快速开始
+## 🚀 快速上手
 
-### 运行推荐版本（超级增强版）
-```bash
-node super_main.js
+1. 安装依赖
+   ```bash
+   npm install
+   ```
+2. 安装 Playwright 浏览器（首次执行即可）
+   ```bash
+   npx playwright install chromium
+   ```
+3. 运行“超级增强版”抓取任务
+   ```bash
+   node super_main.js
+   ```
+   或直接运行 npm 脚本：
+   ```bash
+   npm run dataset
+   ```
+
+运行过程中会自动拆分搜索前缀，逐段拉取列表与详情。任务完成后可在 `outputs/datasets/` 看到四个结果文件：
+
+```
+outputs/datasets/
+├── 国内H.jsonl
+├── 国内S.jsonl
+├── 进口H.jsonl
+└── 进口S.jsonl
 ```
 
-### 其他可用版本
-```bash
-node enhanced_main.js    # 增强版 - 性能稳定
-node hybrid_main.js      # 混合策略版 - 简化高效
-node data_main.js        # 数据专用版 - 专门优化
+## ⚙️ 核心环境变量
+
+| 变量 | 说明 | 默认值 |
+| --- | --- | --- |
+| `NMPA_DATASETS` | 指定要抓取的数据集，逗号分隔（可选值：`domestic-h`, `domestic-s`, `imported`） | `domestic-h,domestic-s,imported` |
+| `NMPA_DOMESTIC_SEGMENT_LIMIT` | 单段最大记录数，超过自动继续拆分 | `9000` |
+| `NMPA_DOMESTIC_SEGMENT_DEPTH` | 拆分最大深度 | `4` |
+| `NMPA_PROXY` / `HTTP(S)_PROXY` | 代理地址（支持 `http://user:pass@host:port`） | 无 |
+| `NMPA_PROXY_USERNAME` / `NMPA_PROXY_PASSWORD` | 当代理账号信息不能写进 URL 时使用 | 无 |
+| `NMPA_SEGMENT_DELAY_MIN/MAX` | 拆分请求之间的等待区间（毫秒） | `400 / 1200` |
+| `NMPA_PAGE_DELAY_MIN/MAX` | 翻页之间的等待区间（毫秒） | `180 / 420` |
+| `NMPA_DETAIL_DELAY_MIN/MAX` | 批量拉详情前的等待区间（毫秒） | `100 / 220` |
+| `NMPA_LIST_RETRY_LIMIT` | 列表请求重试次数 | `3` |
+| `NMPA_DETAIL_RETRY_LIMIT` | 详情补偿重试次数 | `2` |
+
+> **代理推荐**：如需长期高频抓取，建议选用中国出口的动态住宅/隧道代理（例如：芝麻 HTTP、亮数据 Bright Data、蚂蚁代理、阿布云等），并保证 IP 切换间隔与并发量符合服务商限制。
+
+## 📄 数据格式示例
+
+```jsonc
+{"code":"国药准字H10950068","zh":"氧氟沙星葡萄糖注射液","en":"Ofloxacin and Glucose Injection"}
+{"code":"国药准字S20063025","zh":"抗狂犬病血清","en":"Rabies Antiserum"}
+{"code":"H20171268","product_zh":"琥珀酸普芦卡必利片","product_en":"Prucalopride Succinate Tablets","commodity_zh":"力洛","commodity_en":"Resolor"}
+{"code":"S20160004","product_zh":"利拉鲁肽注射液","product_en":"Liraglutide Injection","commodity_zh":"诺和力","commodity_en":"Victoza"}
 ```
 
-### 抓取标准数据集（国内 / 进口）
-```bash
-npm run dataset
-```
-运行完毕后会在 `outputs/datasets` 下生成 `国内H.jsonl`、`国内S.jsonl`、`进口H.jsonl`、`进口S.jsonl` 四个 JSONL 文件。
-
-## 📊 输出格式
-
-```json
-{"code":"国药准字H12345678","zh":"阿莫西林胶囊","en":"","source":"strategy_1","url":"https://...","timestamp":"2025-10-14T08:30:00.000Z"}
-```
-
-## 📁 文件结构
+## 🗂 目录结构（核心部分）
 
 ```
 nmpa_crawler_nodejs/
-├── super_main.js          # ⭐ 超级增强版（推荐）
-├── enhanced_main.js        # 增强版
-├── hybrid_main.js          # 混合策略版
-├── data_main.js            # 数据专用版
-├── simple_main.js          # 简单版
-├── crawlee_main.js         # Crawlee框架版
-├── outputs/                # 输出目录
-│   ├── drugs_super_*.jsonl
-│   ├── drugs_all.jsonl
-│   └── datasets/           # 标准数据集输出
-│       ├── 国内H.jsonl
-│       ├── 国内S.jsonl
-│       ├── 进口H.jsonl
-│       └── 进口S.jsonl
-├── downloads/              # 临时文件
-├── USAGE_GUIDE.md          # 详细使用指南
-├── FINAL_SOLUTION_SUMMARY.md # 完整技术方案
-└── CRAWLER_SUMMARY.md      # 项目总结
+├── super_main.js              # 推荐入口，封装 runDatasetCrawler
+├── package.json               # 项目入口 & npm scripts
+├── src/
+│   ├── dataset_crawler.js     # 数据集抓取主逻辑
+│   └── utils/                 # 其他工具模块（保留）
+├── outputs/                   # 默认输出目录（已在 .gitignore 中忽略）
+├── storage/                   # Crawlee 临时缓存
+├── legacy/                    # 历史脚本与实验代码（保留参考）
+├── README.md                  # 当前文档
+└── OPERATIONS.md              # 运行与排错手册
 ```
 
-## 🛠️ 技术栈
+> 历史脚本历史原因暂保留在 `legacy/`，如需回溯旧方案可在该目录查阅。
 
-- **Node.js** - 高性能JavaScript运行时
-- **Playwright** - 现代浏览器自动化框架
-- **ES6+** - 模块化JavaScript语法
-- **JSONL** - 结构化数据输出格式
+## 🛠 运行技巧
 
-## 📈 核心功能
+- 建议 **后台持久运行**（如 `nohup` / `screen` / `tmux`），以免长时间任务被意外中断。
+- 若出现 403，可等待 5-10 分钟或更换代理后重启；任务会自动从头开始并覆盖输出文件。
+- 数据量较大时，建议按 Segment 模式运行（默认），避免一次请求触达 1000 页上限。
+- `storage/` 目录里保留 Crawlee 的队列和统计，可用于排错，如不需要可定期清理。
 
-### 1. 多层绕过策略
-- User-Agent轮换（7种浏览器签名）
-- 请求头伪装（3种配置组合）
-- 人类行为模拟（鼠标移动、页面滚动）
-- JavaScript反检测注入
-- fetch API模拟请求
+## 📚 相关文档
 
-### 2. 智能数据提取
-- 5种国药准字识别策略
-- 自动数据清洗和去重
-- 支持多种页面结构格式
-- 智能链接发现和跟进
+- [OPERATIONS.md](OPERATIONS.md) — 运行流程、常见问题、代理建议
+- [USAGE_GUIDE.md](USAGE_GUIDE.md) — 原始指南（保留）
+- 其他 `FINAL_*.md` — 历史方案文档，按需查阅
 
-### 3. 完善的监控
-- 详细的访问日志
-- 实时状态监控
-- 错误分析和处理
-- 性能统计报告
+## ⚠️ 注意
 
-## 📋 验证结果
-
-### ✅ 已验证功能
-- 成功绕过412 Precondition Failed防护
-- 获得200状态码和完整页面内容
-- 智能发现相关数据链接
-- 正确提取国药准字格式数据
-
-### 📊 测试数据
-```
-📊 响应状态: 200
-📄 页面内容长度: 1547
-🔗 发现 5 个相关链接
-📦 提取到 X 个药品信息
-```
-
-## 📚 文档
-
-- [使用指南](USAGE_GUIDE.md) - 详细的使用说明
-- [技术方案](FINAL_SOLUTION_SUMMARY.md) - 完整的技术解决方案
-- [项目总结](CRAWLER_SUMMARY.md) - 项目成果分析
-
-## ⚠️ 注意事项
-
-1. **合理使用** - 请遵守网站使用条款，适度访问
-2. **错峰运行** - 建议避开工作时间（9:00-18:00）
-3. **网络稳定** - 确保网络连接稳定
-4. **定期维护** - 根据网站变化调整策略
-
-## 🔄 状态
-
-**当前版本：** v1.0
-**更新时间：** 2025年10月14日
-**项目状态：** ✅ 核心功能完成，生产就绪
+1. 请遵守目标网站的使用条款，合理安排请求频率。
+2. 建议在夜间/低峰时段运行，减少被风控的风险。
+3. 如需合规留证，建议保留日志与请求参数。
 
 ---
 
-**技术支持：** 基于Node.js + Playwright的完整爬虫解决方案
+**维护者提示**：如需扩展新的数据源或接入任务调度，可在 `runDatasetCrawler` 的 `options.datasets` 或 `NMPA_DATASETS` 中追加自定义标识，并在 `handleDatasetRequest` 内实现对应逻辑。
