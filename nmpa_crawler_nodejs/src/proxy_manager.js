@@ -76,11 +76,16 @@ class ProxyManager {
             'Timeout 60000ms exceeded',
             'page.waitForFunction: Timeout',
             'Navigation timeout',
+            '首页访问失败',
+            '搜索页返回',
             'net::ERR_TIMED_OUT',
             'net::ERR_PROXY_CONNECTION_FAILED',
             'net::ERR_TUNNEL_CONNECTION_FAILED',
         ];
-        return blockedKeywords.some((keyword) => message.includes(keyword));
+        if (blockedKeywords.some((keyword) => message.includes(keyword))) return true;
+        const contextType = error?.context?.type;
+        if (contextType && ['navigation', 'navigation-home', 'navigation-search'].includes(contextType)) return true;
+        return false;
     }
 
     hasMultiple() {
