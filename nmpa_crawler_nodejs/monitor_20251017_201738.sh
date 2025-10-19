@@ -1,0 +1,13 @@
+#!/bin/bash
+echo "📊 NMPA 爬虫监控 - 20251017_201738"
+echo "==============================="
+echo "进程状态:"
+ps -p 3335348 -o pid,etime,pcpu,pmem,cmd 2>/dev/null || echo "进程已结束"
+echo ""
+echo "输出文件大小:"
+ls -lh outputs/datasets/*.jsonl 2>/dev/null | awk '{print $9 ": " $5}' || echo "无输出文件"
+echo ""
+echo "最近日志:"
+tail -5 "crawler_20251017_201738.log" 2>/dev/null || echo "日志文件不存在"
+echo ""
+echo "实时监控命令: tail -f crawler_20251017_201738.log"

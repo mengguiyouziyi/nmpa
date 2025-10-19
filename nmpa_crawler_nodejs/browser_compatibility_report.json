@@ -1,0 +1,40 @@
+{
+  "timestamp": "2025-10-18T09:12:39.979Z",
+  "summary": {
+    "total": 3,
+    "successful": 0,
+    "failed": 3
+  },
+  "results": {
+    "chromium": {
+      "name": "Chromium",
+      "success": false,
+      "launchTime": 257,
+      "navigationTime": 461,
+      "jsExecutionTime": null,
+      "error": "导航失败: 导航失败: 412",
+      "pageSize": null,
+      "memoryUsage": null
+    },
+    "firefox": {
+      "name": "Firefox",
+      "success": false,
+      "launchTime": 683,
+      "navigationTime": 978,
+      "jsExecutionTime": null,
+      "error": "导航失败: 导航失败: 412",
+      "pageSize": null,
+      "memoryUsage": null
+    },
+    "webkit (safari)": {
+      "name": "WebKit (Safari)",
+      "success": false,
+      "launchTime": null,
+      "navigationTime": null,
+      "jsExecutionTime": null,
+      "error": "启动失败: browserType.launch: Target page, context or browser has been closed\nBrowser logs:\n\n╔════════════════════════════════════════════════════════════════════════════════════════════════╗\n║ Looks like you launched a headed browser without having a XServer running.                     ║\n║ Set either 'headless: true' or use 'xvfb-run <your-playwright-app>' before running Playwright. ║\n║                                                                                                ║\n║ <3 Playwright Team                                                                             ║\n╚════════════════════════════════════════════════════════════════════════════════════════════════╝\nCall log:\n\u001b[2m  - <launching> /home/langchao6/.cache/ms-playwright/webkit-2203/minibrowser-gtk/MiniBrowser --inspector-pipe --headless --no-startup-window --no-sandbox --disable-setuid-sandbox --headless=new\u001b[22m\n\u001b[2m  - <launched> pid=2395510\u001b[22m\n\u001b[2m  - [pid=2395510][err]\u001b[22m\n\u001b[2m  - [pid=2395510][err] (process:2395510): Gtk-WARNING **: 17:12:39.959: cannot open display:\u001b[22m\n\u001b[2m  - [pid=2395510] <gracefully close start>\u001b[22m\n\u001b[2m  - [pid=2395510] <kill>\u001b[22m\n\u001b[2m  - [pid=2395510] <will force kill>\u001b[22m\n\u001b[2m  - [pid=2395510] <process did exit: exitCode=1, signal=null>\u001b[22m\n\u001b[2m  - [pid=2395510] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=2395510] finished temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=2395510] <gracefully close end>\u001b[22m\n",
+      "pageSize": null,
+      "memoryUsage": null
+    }
+  }
+}
