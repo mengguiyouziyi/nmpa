@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 import playwright from 'playwright';
 
 const SEARCH_URL = 'https://www.nmpa.gov.cn/datasearch/search-result.html';
-const OUTPUT_ROOT = path.resolve('outputs/datasets');
+const OUTPUT_ROOT = path.resolve(process.env.NMPA_OUTPUT_ROOT ?? 'outputs/datasets');
 const PLAYWRIGHT_ARGS = ['--no-sandbox', '--disable-setuid-sandbox', '--headless=new'];
 
 const DOMESTIC_ITEM_ID = 'ff80808183cad75001840881f848179f';
@@ -16,11 +16,22 @@ const IMPORTED_ITEM_ID = 'ff80808183cad7500184088665711800';
 
 const RAW_PAGE_SIZE = Math.max(1, parseInt(process.env.NMPA_PAGE_SIZE ?? '20', 10));
 const REQUEST_PAGE_SIZE = Math.min(RAW_PAGE_SIZE, 20);
-const DOMESTIC_MAX_PAGES = Math.max(1, parseInt(process.env.NMPA_DOMESTIC_MAX_PAGES ?? '500', 10));
+const DOMESTIC_MAX_PAGES = Math.min(
+    50,
+    Math.max(1, parseInt(process.env.NMPA_DOMESTIC_MAX_PAGES ?? '50', 10)),
+);
 const DEFAULT_SEGMENT_LIMIT = REQUEST_PAGE_SIZE * DOMESTIC_MAX_PAGES;
-const DOMESTIC_SEGMENT_LIMIT = Math.max(1, parseInt(process.env.NMPA_DOMESTIC_SEGMENT_LIMIT ?? `${DEFAULT_SEGMENT_LIMIT}`, 10));
-const DOMESTIC_MAX_SEGMENT_DEPTH = Math.max(1, parseInt(process.env.NMPA_DOMESTIC_SEGMENT_DEPTH ?? '4', 10));
-const SEGMENT_DIGITS = (process.env.NMPA_SEGMENT_DIGITS || '0,1,2,3,4,5,6,7,8,9')
+const DOMESTIC_SEGMENT_LIMIT = Math.min(
+    DEFAULT_SEGMENT_LIMIT,
+    Math.max(1, parseInt(process.env.NMPA_DOMESTIC_SEGMENT_LIMIT ?? `${DEFAULT_SEGMENT_LIMIT}`, 10)),
+);
+const DOMESTIC_MAX_SEGMENT_DEPTH = Math.max(1, parseInt(process.env.NMPA_DOMESTIC_SEGMENT_DEPTH ?? '20', 10));
+
+const SEGMENT_DIGITS = (process.env.NMPA_SEGMENT_DIGITS || (() => {
+    const digits = Array.from({ length: 10 }, (_, index) => String(index));
+    const letters = Array.from({ length: 26 }, (_, index) => String.fromCharCode(65 + index));
+    return digits.concat(letters).join(',');
+})())
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
@@ -55,6 +66,12 @@ const DETAIL_RETRY_LIMIT = Math.max(0, parseInt(process.env.NMPA_DETAIL_RETRY_LI
 const DETAIL_CONCURRENCY = Math.max(1, parseInt(process.env.NMPA_DETAIL_CONCURRENCY ?? '4', 10));
 const DETAIL_BATCH_DELAY_MS = Math.max(0, parseInt(process.env.NMPA_DETAIL_BATCH_DELAY_MS ?? '15000', 10));
 const PAGE_LOG_INTERVAL = Math.max(1, parseInt(process.env.NMPA_PAGE_LOG_INTERVAL ?? '50', 10));
+const DETAIL_SUCCESS_MIN_RATIO = Math.min(
+    1,
+    Math.max(0, parseFloat(process.env.NMPA_DETAIL_SUCCESS_MIN_RATIO ?? '0.2')),
+);
+const BLOCK_COOLDOWN_MS = Math.max(0, parseInt(process.env.NMPA_BLOCK_COOLDOWN_MS ?? '300000', 10));
+const BLOCK_MAX_COOLDOWN_ATTEMPTS = Math.max(0, parseInt(process.env.NMPA_BLOCK_MAX_COOLDOWN_ATTEMPTS ?? '3', 10));
 const BROWSER_SEQUENCE = (() => {
     const allowed = new Set(['chromium', 'firefox', 'webkit']);
     const raw = (process.env.NMPA_BROWSER_SEQUENCE ?? 'chromium')
@@ -70,7 +87,7 @@ const BROWSER_SEQUENCE = (() => {
     }
     return normalized;
 })();
-const BROWSER_PAGE_BATCH = Math.max(1, parseInt(process.env.NMPA_BROWSER_PAGE_BATCH ?? '50', 10));
+const BROWSER_PAGE_BATCH = Math.max(0, parseInt(process.env.NMPA_BROWSER_PAGE_BATCH ?? '0', 10));
 const BROWSER_SWAP_DELAY_MS = Math.max(0, parseInt(process.env.NMPA_BROWSER_SWAP_DELAY_MS ?? '300000', 10));
 
 crawlerLog.setLevel(crawlerLog.LEVELS.INFO);
@@ -94,6 +111,22 @@ async function sleepRange(range) {
     if (duration > 0) await sleep(duration);
 }
 
+function shouldRotateForListError(error) {
+    if (!error) return false;
+    if (error.shouldRotate) return true;
+    const message = typeof error.message === 'string' ? error.message.toLowerCase() : '';
+    return /status code 4\d\d|403|412|timeout|target page|context or browser has been closed/.test(message);
+}
+
+async function closeQuietly(resource) {
+    if (!resource || typeof resource.close !== 'function') return;
+    try {
+        await resource.close();
+    } catch (error) {
+        // ignore
+    }
+}
+
 class BrowserController {
     constructor({ initialPage, logger, proxy, browserArgs, swapDelayMs, sequence }) {
         this.logger = logger;
@@ -106,6 +139,7 @@ class BrowserController {
         this.currentContext = this.currentPage?.context?.() ?? null;
         this.currentBrowser = this.currentContext?.browser?.() ?? null;
         this.ownsCurrentBrowser = false;
+        this.disabledTypes = new Set();
 
         const detectedType = this.detectType(this.currentBrowser);
         this.currentBrowserType = detectedType ?? this.sequence[0];
@@ -148,36 +182,69 @@ class BrowserController {
     async launchNextBrowser() {
         if (this.sequence.length === 0) throw new Error('Browser sequence is empty.');
 
-        const index = this.rotationIndex % this.sequence.length;
-        const browserTypeName = this.sequence[index] || 'chromium';
-        this.rotationIndex += 1;
+        const total = this.sequence.length;
+        let attempts = 0;
+        let lastError = null;
+        const attemptedTypes = new Set();
 
-        const launcher = playwright[browserTypeName];
-        if (!launcher) {
-            throw new Error(`Playwright 不支持浏览器类型 ${browserTypeName}`);
+        while (attempts < total * 2) {
+            if (this.disabledTypes.size >= total) {
+                this.logger.warning('所有浏览器已被标记为不可用，清空禁用列表后重试');
+                this.disabledTypes.clear();
+            }
+
+            const index = this.rotationIndex % this.sequence.length;
+            const browserTypeName = this.sequence[index] || 'chromium';
+            this.rotationIndex += 1;
+            attempts += 1;
+            attemptedTypes.add(browserTypeName);
+
+            if (this.disabledTypes.has(browserTypeName)) {
+                continue;
+            }
+
+            const launcher = playwright[browserTypeName];
+            if (!launcher) {
+                this.logger.warning(`Playwright 不支持浏览器类型 ${browserTypeName}`);
+                continue;
+            }
+
+            const launchOptions = {
+                headless: true,
+                args: this.browserArgs,
+            };
+            if (this.proxy) {
+                launchOptions.proxy = { ...this.proxy };
+            }
+
+            let browser = null;
+            let context = null;
+            let page = null;
+            try {
+                browser = await launcher.launch(launchOptions);
+                context = await browser.newContext();
+                page = await context.newPage();
+
+                await this.preparePage(page);
+
+                this.currentBrowser = browser;
+                this.currentContext = context;
+                this.currentPage = page;
+                this.currentBrowserType = browserTypeName;
+                this.ownsCurrentBrowser = true;
+
+                this.logger.info(`已切换至 ${browserTypeName} 浏览器实例`);
+                return;
+            } catch (error) {
+                lastError = error;
+                this.logger.warning(`${browserTypeName} 浏览器启动失败: ${error.message}`);
+                await closeQuietly(page);
+                await closeQuietly(context);
+                await closeQuietly(browser);
+            }
         }
 
-        const launchOptions = {
-            headless: true,
-            args: this.browserArgs,
-        };
-        if (this.proxy) {
-            launchOptions.proxy = { ...this.proxy };
-        }
-
-        const browser = await launcher.launch(launchOptions);
-        const context = await browser.newContext();
-        const page = await context.newPage();
-
-        await this.preparePage(page);
-
-        this.currentBrowser = browser;
-        this.currentContext = context;
-        this.currentPage = page;
-        this.currentBrowserType = browserTypeName;
-        this.ownsCurrentBrowser = true;
-
-        this.logger.info(`已切换至 ${browserTypeName} 浏览器实例`);
+        throw new Error(`无法启动任何浏览器 (${Array.from(attemptedTypes).join(', ')})：${lastError?.message ?? 'unknown error'}`);
     }
 
     async rotateBrowser(reason) {
@@ -190,28 +257,11 @@ class BrowserController {
     }
 
     async disposeCurrent() {
-        if (this.currentPage) {
-            try {
-                await this.currentPage.close();
-            } catch (error) {
-                this.logger.debug?.(`关闭页面时出现异常: ${error.message}`);
-            }
+        await closeQuietly(this.currentPage);
+        await closeQuietly(this.currentContext);
+        if (this.ownsCurrentBrowser) {
+            await closeQuietly(this.currentBrowser);
         }
-        if (this.currentContext) {
-            try {
-                await this.currentContext.close();
-            } catch (error) {
-                this.logger.debug?.(`关闭上下文时出现异常: ${error.message}`);
-            }
-        }
-        if (this.currentBrowser && this.ownsCurrentBrowser) {
-            try {
-                await this.currentBrowser.close();
-            } catch (error) {
-                this.logger.debug?.(`关闭浏览器实例时出现异常: ${error.message}`);
-            }
-        }
-
         this.currentPage = null;
         this.currentContext = null;
         this.currentBrowser = null;
@@ -220,6 +270,16 @@ class BrowserController {
 
     async dispose() {
         await this.disposeCurrent();
+    }
+
+    markCurrentBrowserUnhealthy(reason) {
+        const type = this.currentBrowserType;
+        if (!type) return false;
+        if (this.sequence.length <= 1) return false;
+        if (this.disabledTypes.has(type)) return false;
+        this.logger.warning(`${type} 浏览器已标记为不可用：${reason}`);
+        this.disabledTypes.add(type);
+        return true;
     }
 }
 
@@ -267,7 +327,7 @@ async function writeJsonLine(stream, data) {
     }
 }
 
-async function fetchListPage(page, { itemId, searchValue, pageNum, pageSize = REQUEST_PAGE_SIZE }, attempt = 0) {
+async function fetchListPage(page, { itemId, searchValue, pageNum, pageSize = REQUEST_PAGE_SIZE }, attempt = 0, recoveryAttempts = 0) {
     await sleepRange(LIST_DELAY_RANGE);
     try {
         const response = await page.evaluate(async (params) => {
@@ -289,11 +349,28 @@ async function fetchListPage(page, { itemId, searchValue, pageNum, pageSize = RE
         }
         return payload;
     } catch (error) {
-        if (attempt + 1 >= LIST_RETRY_LIMIT) throw error;
+        const message = (error?.message || '').toLowerCase();
+        const looksBlocked = message.includes('status code 4') || message.includes('status code 5') || message.includes('timeout') || message.includes('getcookie');
+        const shouldRotate = shouldRotateForListError(error);
+
+        if (attempt + 1 >= LIST_RETRY_LIMIT) {
+            if (looksBlocked && BLOCK_COOLDOWN_MS > 0 && recoveryAttempts < BLOCK_MAX_COOLDOWN_ATTEMPTS) {
+                crawlerLog.warning(`列表请求连续失败，可能触发封禁，等待 ${BLOCK_COOLDOWN_MS}ms 后重试（已冷却 ${recoveryAttempts}/${BLOCK_MAX_COOLDOWN_ATTEMPTS} 次）`);
+                await sleep(BLOCK_COOLDOWN_MS);
+                return fetchListPage(page, { itemId, searchValue, pageNum, pageSize }, 0, recoveryAttempts + 1);
+            }
+
+            if (error && typeof error === 'object') {
+                error.shouldRotate = error.shouldRotate ?? shouldRotate;
+                error.shouldCooldown = error.shouldCooldown ?? looksBlocked;
+            }
+            throw error;
+        }
+
         const delay = randomBetween(1500, 3000) * (attempt + 1);
         crawlerLog.warning(`列表请求失败(${attempt + 1}/${LIST_RETRY_LIMIT})，${error.message || error}，${delay}ms 后重试`);
         await sleep(delay);
-        return fetchListPage(page, { itemId, searchValue, pageNum, pageSize }, attempt + 1);
+        return fetchListPage(page, { itemId, searchValue, pageNum, pageSize }, attempt + 1, recoveryAttempts);
     }
 }
 
@@ -316,7 +393,7 @@ async function processDomesticSegments(controller, baseSearch, logger, onSegment
 
         const effectivePageSize = payload.pageSize || REQUEST_PAGE_SIZE;
         const totalPages = Math.ceil(total / Math.max(1, effectivePageSize));
-        if (((total <= DOMESTIC_SEGMENT_LIMIT) && (totalPages <= DOMESTIC_MAX_PAGES)) || depth >= DOMESTIC_MAX_SEGMENT_DEPTH) {
+        if ((total <= DOMESTIC_SEGMENT_LIMIT) && (totalPages <= DOMESTIC_MAX_PAGES)) {
             const segment = {
                 searchValue,
                 total,
@@ -332,9 +409,19 @@ async function processDomesticSegments(controller, baseSearch, logger, onSegment
             return;
         }
 
+        if (depth + 1 > DOMESTIC_MAX_SEGMENT_DEPTH) {
+            throw new Error(`${searchValue}: 拆分深度已达 ${DOMESTIC_MAX_SEGMENT_DEPTH} 仍超过 ${DOMESTIC_MAX_PAGES} 页，请调整 NMPA_SEGMENT_DIGITS 或提高 NMPA_DOMESTIC_MAX_SEGMENT_DEPTH`);
+        }
+
         logger.info(`${searchValue}: ${total} 条，继续细分`);
+        const nextDepth = depth + 1;
+        let hasChild = false;
         for (const digit of SEGMENT_DIGITS) {
-            await split(`${searchValue}${digit}`, depth + 1);
+            hasChild = true;
+            await split(`${searchValue}${digit}`, nextDepth);
+        }
+        if (!hasChild) {
+            throw new Error(`${searchValue}: SEGMENT_DIGITS 为空无法继续拆分，请调整 NMPA_SEGMENT_DIGITS`);
         }
     }
 
@@ -412,6 +499,9 @@ async function crawlDomesticSegment(controller, segment, { prefix, logger }) {
     let batchIndex = 0;
     let pagesInBatch = 0;
     let stream = null;
+    let rotationRecoveries = 0;
+    let consecutiveDetailFailures = 0;
+    const seenCodes = new Set();
 
     const openBatch = async () => {
         batchIndex += 1;
@@ -436,7 +526,22 @@ async function crawlDomesticSegment(controller, segment, { prefix, logger }) {
 
             if (!payload) {
                 await sleepRange(PAGE_DELAY_RANGE);
-                payload = await fetchListPage(page, { itemId: DOMESTIC_ITEM_ID, searchValue: segment.searchValue, pageNum, pageSize: REQUEST_PAGE_SIZE });
+                try {
+                    payload = await fetchListPage(page, { itemId: DOMESTIC_ITEM_ID, searchValue: segment.searchValue, pageNum, pageSize: REQUEST_PAGE_SIZE });
+                    rotationRecoveries = 0;
+                } catch (error) {
+                    const canRotate = controller.sequence.length > 1
+                        && shouldRotateForListError(error)
+                        && rotationRecoveries < controller.sequence.length * 3;
+                    if (canRotate) {
+                        rotationRecoveries += 1;
+                        logger.warning(`${segment.searchValue}: 第 ${pageNum} 页列表请求异常(${error.message || error})，尝试切换浏览器重试`);
+                        await controller.rotateBrowser(`${segment.searchValue}: 列表请求异常，尝试新浏览器`);
+                        payload = null;
+                        continue;
+                    }
+                    throw error;
+                }
             }
 
             const records = payload.list || [];
@@ -447,6 +552,7 @@ async function crawlDomesticSegment(controller, segment, { prefix, logger }) {
             const ids = records.map((item) => item.f4).filter(Boolean);
             if (DETAIL_BATCH_DELAY_MS > 0) await sleep(DETAIL_BATCH_DELAY_MS);
             const batchDetails = await fetchDetailsBatch(page, DOMESTIC_ITEM_ID, ids);
+            let pageSuccessCount = 0;
 
             for (let index = 0; index < ids.length; index++) {
                 const id = ids[index];
@@ -474,9 +580,30 @@ async function crawlDomesticSegment(controller, segment, { prefix, logger }) {
                     en: detail.f2 || '',
                 };
 
+                if (seenCodes.has(record.code)) continue;
+                seenCodes.add(record.code);
+
                 await writeJsonLine(stream, record);
                 totalWritten += 1;
+                pageSuccessCount += 1;
                 await sleepRange(RECORD_DELAY_RANGE);
+            }
+
+            const successRatio = pageSuccessCount / Math.max(1, ids.length);
+
+            if (successRatio < DETAIL_SUCCESS_MIN_RATIO) {
+                consecutiveDetailFailures += 1;
+                logger.warning(`${segment.searchValue}: 第 ${pageNum} 页详情成功率 ${(successRatio * 100).toFixed(1)}%，尝试切换浏览器重试（连续 ${consecutiveDetailFailures} 页低于阈值）`);
+                const marked = controller.markCurrentBrowserUnhealthy('连续详情抓取失败');
+                if (marked || controller.sequence.length > 1) {
+                    await controller.rotateBrowser(`${segment.searchValue}: 连续详情失败`);
+                } else {
+                    await sleep(15000);
+                }
+                payload = null;
+                continue;
+            } else {
+                consecutiveDetailFailures = 0;
             }
 
             if (pageNum % PAGE_LOG_INTERVAL === 0 || pageNum === segment.totalPages) {
@@ -487,7 +614,7 @@ async function crawlDomesticSegment(controller, segment, { prefix, logger }) {
             payload = null;
             pagesInBatch += 1;
 
-            if (pagesInBatch >= BROWSER_PAGE_BATCH && pageNum <= segment.totalPages) {
+            if (BROWSER_PAGE_BATCH > 0 && pagesInBatch >= BROWSER_PAGE_BATCH && pageNum <= segment.totalPages) {
                 await closeBatch();
                 await controller.rotateBrowser(`${segment.searchValue}: 已抓取 ${pageNum - 1} 页`);
                 pagesInBatch = 0;
@@ -505,6 +632,9 @@ async function crawlDomesticCategory(controller, { baseSearch, prefix, label }, 
     let processed = 0;
 
     await processDomesticSegments(controller, baseSearch, logger, async (segment) => {
+        if (controller.sequence.length > 1) {
+            await controller.rotateBrowser(`${segment.searchValue}: 使用当前检索段，准备切换浏览器`);
+        }
         await crawlDomesticSegment(controller, segment, { prefix, logger });
         processed += 1;
         await sleepRange(SEGMENT_PAUSE_RANGE);
