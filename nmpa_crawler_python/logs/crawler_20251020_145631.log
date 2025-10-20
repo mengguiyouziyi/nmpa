@@ -1,0 +1,3 @@
+usage: crawler.py [-h] [-q QUERIES] [--max-segments MAX_SEGMENTS]
+                  [--log-level LOG_LEVEL]
+crawler.py: error: unrecognized arguments: --concurrent 8 --max-retries 3 --retry-delay 5 --output-dir ./outputs

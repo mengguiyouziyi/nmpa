@@ -1,0 +1,25 @@
+2025-10-20 14:56:43 | INFO | 【启动】NMPA 爬虫启动，基础关键词=['国药准字H', '国药准字S']
+2025-10-20 14:56:47 | INFO | 【入口】开始处理基础关键词：国药准字H
+2025-10-20 14:56:47 | INFO | 【拆分】国药准字H 深度=0 -> 请求第 1 页
+Traceback (most recent call last):
+  File "/home/langchao6/projects/taya/nmpa/nmpa_crawler_python/crawler.py", line 385, in <module>
+    main()
+  File "/home/langchao6/projects/taya/nmpa/nmpa_crawler_python/crawler.py", line 381, in main
+    crawl(client, base_queries, max_segments=args.max_segments)
+  File "/home/langchao6/projects/taya/nmpa/nmpa_crawler_python/crawler.py", line 336, in crawl
+    for segment in segment_queries(client, base):
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/langchao6/projects/taya/nmpa/nmpa_crawler_python/crawler.py", line 119, in segment_queries
+    result = fetch_first_page(client, base_value, depth)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/langchao6/projects/taya/nmpa/nmpa_crawler_python/crawler.py", line 78, in fetch_first_page
+    response = client.get("/data/nmpadata/search", params=params)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/langchao6/projects/taya/nmpa/nmpa_crawler_python/client.py", line 149, in get
+    return self._request(
+           ^^^^^^^^^^^^^^
+  File "/home/langchao6/projects/taya/nmpa/nmpa_crawler_python/client.py", line 218, in _request
+    response.raise_for_status()
+  File "/home/langchao6/anaconda3/lib/python3.12/site-packages/requests/models.py", line 1024, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 412 Client Error: Precondition Failed for url: https://www.nmpa.gov.cn/datasearch/data/nmpadata/search?itemId=ff80808183cad75001840881f848179f&searchValue=%E5%9B%BD%E8%8D%AF%E5%87%86%E5%AD%97H&pageNum=1&pageSize=20&isSenior=N
