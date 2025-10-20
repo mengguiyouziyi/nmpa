@@ -7,9 +7,16 @@ import { once } from 'events';
 import { fileURLToPath } from 'url';
 import playwright from 'playwright';
 
+const HOME_URL = 'https://www.nmpa.gov.cn/';
 const SEARCH_URL = 'https://www.nmpa.gov.cn/datasearch/search-result.html';
 const OUTPUT_ROOT = path.resolve(process.env.NMPA_OUTPUT_ROOT ?? 'outputs/datasets');
-const PLAYWRIGHT_ARGS = ['--no-sandbox', '--disable-setuid-sandbox', '--headless=new'];
+const PLAYWRIGHT_ARGS = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--headless=new',
+    '--lang=zh-CN,zh',
+    '--disable-blink-features=AutomationControlled',
+];
 
 const DOMESTIC_ITEM_ID = 'ff80808183cad75001840881f848179f';
 const IMPORTED_ITEM_ID = 'ff80808183cad7500184088665711800';
@@ -17,20 +24,20 @@ const IMPORTED_ITEM_ID = 'ff80808183cad7500184088665711800';
 const RAW_PAGE_SIZE = Math.max(1, parseInt(process.env.NMPA_PAGE_SIZE ?? '20', 10));
 const REQUEST_PAGE_SIZE = Math.min(RAW_PAGE_SIZE, 20);
 const DOMESTIC_MAX_PAGES = Math.min(
-    50,
-    Math.max(1, parseInt(process.env.NMPA_DOMESTIC_MAX_PAGES ?? '50', 10)),
+    10,
+    Math.max(1, parseInt(process.env.NMPA_DOMESTIC_MAX_PAGES ?? '10', 10)),
 );
 const DEFAULT_SEGMENT_LIMIT = REQUEST_PAGE_SIZE * DOMESTIC_MAX_PAGES;
 const DOMESTIC_SEGMENT_LIMIT = Math.min(
     DEFAULT_SEGMENT_LIMIT,
     Math.max(1, parseInt(process.env.NMPA_DOMESTIC_SEGMENT_LIMIT ?? `${DEFAULT_SEGMENT_LIMIT}`, 10)),
 );
-const DOMESTIC_MAX_SEGMENT_DEPTH = Math.max(1, parseInt(process.env.NMPA_DOMESTIC_SEGMENT_DEPTH ?? '20', 10));
+const SEGMENT_MAX_DIGITS = Math.max(1, parseInt(process.env.NMPA_SEGMENT_MAX_DIGITS ?? '8', 10));
+const DOMESTIC_MAX_SEGMENT_DEPTH = Math.max(1, parseInt(process.env.NMPA_DOMESTIC_SEGMENT_DEPTH ?? `${SEGMENT_MAX_DIGITS}`, 10));
 
 const SEGMENT_DIGITS = (process.env.NMPA_SEGMENT_DIGITS || (() => {
     const digits = Array.from({ length: 10 }, (_, index) => String(index));
-    const letters = Array.from({ length: 26 }, (_, index) => String.fromCharCode(65 + index));
-    return digits.concat(letters).join(',');
+    return digits.join(',');
 })())
     .split(',')
     .map((value) => value.trim())
@@ -72,6 +79,10 @@ const DETAIL_SUCCESS_MIN_RATIO = Math.min(
 );
 const BLOCK_COOLDOWN_MS = Math.max(0, parseInt(process.env.NMPA_BLOCK_COOLDOWN_MS ?? '300000', 10));
 const BLOCK_MAX_COOLDOWN_ATTEMPTS = Math.max(0, parseInt(process.env.NMPA_BLOCK_MAX_COOLDOWN_ATTEMPTS ?? '3', 10));
+const BROWSER_COOLDOWN_MS = Math.max(0, parseInt(process.env.NMPA_BROWSER_COOLDOWN_MS ?? '300000', 10));
+const SEGMENT_RETRY_LIMIT = Math.max(1, parseInt(process.env.NMPA_SEGMENT_RETRY_LIMIT ?? '3', 10));
+const NAVIGATION_RETRY_LIMIT = Math.max(1, parseInt(process.env.NMPA_NAVIGATION_RETRY_LIMIT ?? '3', 10));
+const NAVIGATION_COOLDOWN_MS = Math.max(0, parseInt(process.env.NMPA_NAVIGATION_COOLDOWN_MS ?? '60000', 10));
 const BROWSER_SEQUENCE = (() => {
     const allowed = new Set(['chromium', 'firefox', 'webkit']);
     const raw = (process.env.NMPA_BROWSER_SEQUENCE ?? 'chromium')
@@ -89,6 +100,16 @@ const BROWSER_SEQUENCE = (() => {
 })();
 const BROWSER_PAGE_BATCH = Math.max(0, parseInt(process.env.NMPA_BROWSER_PAGE_BATCH ?? '0', 10));
 const BROWSER_SWAP_DELAY_MS = Math.max(0, parseInt(process.env.NMPA_BROWSER_SWAP_DELAY_MS ?? '300000', 10));
+const DEFAULT_USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.76 Safari/537.36',
+];
+const CUSTOM_USER_AGENTS = (process.env.NMPA_USER_AGENTS || '')
+    .split('|')
+    .map((value) => value.trim())
+    .filter(Boolean);
+const NAVIGATION_HOME_WAIT_MS = Math.max(0, parseInt(process.env.NMPA_NAVIGATION_HOME_WAIT_MS ?? '5000', 10));
 
 crawlerLog.setLevel(crawlerLog.LEVELS.INFO);
 
@@ -140,6 +161,8 @@ class BrowserController {
         this.currentBrowser = this.currentContext?.browser?.() ?? null;
         this.ownsCurrentBrowser = false;
         this.disabledTypes = new Set();
+        this.userAgents = CUSTOM_USER_AGENTS.length > 0 ? CUSTOM_USER_AGENTS : DEFAULT_USER_AGENTS;
+        this.userAgentIndex = 0;
 
         const detectedType = this.detectType(this.currentBrowser);
         this.currentBrowserType = detectedType ?? this.sequence[0];
@@ -157,11 +180,26 @@ class BrowserController {
     }
 
     async initialize() {
-        if (this.currentPage) {
-            await this.preparePage(this.currentPage);
-            return;
+        while (true) {
+            if (this.currentPage) {
+                try {
+                    await this.preparePage(this.currentPage);
+                    return;
+                } catch (error) {
+                    if (!error?.shouldCooldown) throw error;
+                    await this.cooldownAndRestart('导航失败，执行冷却', BROWSER_COOLDOWN_MS);
+                    continue;
+                }
+            }
+            try {
+                await this.launchNextBrowser();
+                return;
+            } catch (error) {
+                if (!error?.shouldCooldown) throw error;
+                await sleep(BROWSER_COOLDOWN_MS);
+                continue;
+            }
         }
-        await this.launchNextBrowser();
     }
 
     async preparePage(page) {
@@ -169,7 +207,41 @@ class BrowserController {
         await page.addInitScript(() => {
             window.getUrl = window.getUrl || (() => '');
         });
-        await navigateToSearch(page);
+        await this.navigateWithRetries(page);
+    }
+
+    async navigateWithRetries(page) {
+        let attempt = 0;
+        while (attempt < NAVIGATION_RETRY_LIMIT) {
+            try {
+                await navigateToSearch(page);
+                return;
+            } catch (error) {
+                attempt += 1;
+                const message = error?.message || error;
+                const isHardBlock = /timeout|target page|403|blocked/i.test(String(message));
+                if (error && typeof error === 'object' && isHardBlock) {
+                    error.shouldCooldown = true;
+                }
+                if (attempt >= NAVIGATION_RETRY_LIMIT) {
+                    if (error && typeof error === 'object') {
+                        error.shouldCooldown = true;
+                    }
+                    throw error;
+                }
+                if (error?.shouldCooldown) {
+                    throw error;
+                }
+                const wait = NAVIGATION_COOLDOWN_MS * attempt;
+                this.logger.warning(`导航失败（${message}），第 ${attempt}/${NAVIGATION_RETRY_LIMIT} 次重试前等待 ${wait}ms`);
+                await sleep(wait);
+                try {
+                    await page.goto('about:blank', { waitUntil: 'load', timeout: 15000 }).catch(() => {});
+                } catch (innerError) {
+                    this.logger.debug?.(`导航恢复 about:blank 失败: ${innerError.message}`);
+                }
+            }
+        }
     }
 
     async getPage() {
@@ -222,7 +294,56 @@ class BrowserController {
             let page = null;
             try {
                 browser = await launcher.launch(launchOptions);
-                context = await browser.newContext();
+                const userAgent = this.userAgents[this.userAgentIndex % this.userAgents.length];
+                this.userAgentIndex += 1;
+                context = await browser.newContext({
+                    viewport: { width: 1366, height: 768 },
+                    locale: 'zh-CN',
+                    userAgent,
+                    timezoneId: 'Asia/Shanghai',
+                    colorScheme: 'light',
+                });
+                await context.addInitScript(() => {
+                    Object.defineProperty(navigator, 'webdriver', {
+                        get: () => undefined,
+                    });
+                    window.chrome = window.chrome || { runtime: {} };
+                    Object.defineProperty(navigator, 'languages', {
+                        get: () => ['zh-CN', 'zh', 'en-US', 'en'],
+                    });
+                    Object.defineProperty(navigator, 'platform', {
+                        get: () => 'Win32',
+                    });
+                    Object.defineProperty(navigator, 'hardwareConcurrency', {
+                        get: () => 8,
+                    });
+                    Object.defineProperty(navigator, 'deviceMemory', {
+                        get: () => 8,
+                    });
+                    Object.defineProperty(navigator, 'maxTouchPoints', {
+                        get: () => 0,
+                    });
+                    Object.defineProperty(navigator, 'plugins', {
+                        get: () => [1, 2, 3, 4, 5],
+                    });
+                    const originalQuery = window.navigator.permissions?.query;
+                    if (originalQuery) {
+                        window.navigator.permissions.query = (parameters) => (
+                            parameters.name === 'notifications'
+                                ? Promise.resolve({ state: Notification.permission })
+                                : originalQuery(parameters)
+                        );
+                    }
+                });
+                context.setDefaultNavigationTimeout(Math.max(60000, BROWSER_COOLDOWN_MS));
+                await context.setExtraHTTPHeaders({
+                    accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                    'accept-language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+                    'sec-ch-ua': '"Google Chrome";v="126", "Chromium";v="126", "Not=A?Brand";v="24"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-ch-ua-platform': '"Windows"',
+                    'upgrade-insecure-requests': '1',
+                });
                 page = await context.newPage();
 
                 await this.preparePage(page);
@@ -241,6 +362,13 @@ class BrowserController {
                 await closeQuietly(page);
                 await closeQuietly(context);
                 await closeQuietly(browser);
+                if (error?.shouldCooldown) {
+                    const waitMs = Math.max(BROWSER_COOLDOWN_MS, NAVIGATION_COOLDOWN_MS);
+                    if (waitMs > 0) {
+                        this.logger.info(`浏览器启动失败触发冷却，等待 ${waitMs}ms 后再试`);
+                        await sleep(waitMs);
+                    }
+                }
             }
         }
 
@@ -280,6 +408,15 @@ class BrowserController {
         this.logger.warning(`${type} 浏览器已标记为不可用：${reason}`);
         this.disabledTypes.add(type);
         return true;
+    }
+
+    async cooldownAndRestart(reason, cooldownMs) {
+        await this.disposeCurrent();
+        if (cooldownMs > 0) {
+            this.logger.info(`${reason}，等待 ${cooldownMs}ms 后重启浏览器`);
+            await sleep(cooldownMs);
+        }
+        await this.launchNextBrowser();
     }
 }
 
@@ -393,7 +530,30 @@ async function processDomesticSegments(controller, baseSearch, logger, onSegment
 
         const effectivePageSize = payload.pageSize || REQUEST_PAGE_SIZE;
         const totalPages = Math.ceil(total / Math.max(1, effectivePageSize));
-        if ((total <= DOMESTIC_SEGMENT_LIMIT) && (totalPages <= DOMESTIC_MAX_PAGES)) {
+        const suffixLength = Math.max(0, searchValue.length - baseSearch.length);
+        const reachedMaxDigits = suffixLength >= SEGMENT_MAX_DIGITS;
+
+        const handleSegment = async (segment) => {
+            if (!onSegment) return;
+            let attempt = 0;
+            // ensure fresh browser start before retrying same segment
+            while (attempt < SEGMENT_RETRY_LIMIT) {
+                try {
+                    await onSegment(segment);
+                    return;
+                } catch (error) {
+                    attempt += 1;
+                    const message = error?.message || error;
+                    logger.warning(`${segment.searchValue}: 段处理失败（${message}），第 ${attempt}/${SEGMENT_RETRY_LIMIT} 次重试前执行冷却`);
+                    if (attempt >= SEGMENT_RETRY_LIMIT) {
+                        throw error;
+                    }
+                    await controller.cooldownAndRestart(`${segment.searchValue}: 段处理失败`, BROWSER_COOLDOWN_MS);
+                }
+            }
+        };
+
+        if ((total <= DOMESTIC_SEGMENT_LIMIT && totalPages <= DOMESTIC_MAX_PAGES) || reachedMaxDigits) {
             const segment = {
                 searchValue,
                 total,
@@ -402,15 +562,28 @@ async function processDomesticSegments(controller, baseSearch, logger, onSegment
                 order: segmentIndex,
             };
             segmentIndex += 1;
-            logger.info(`${searchValue}: ${total} 条，使用当前检索段（共 ${totalPages} 页）`);
-            if (onSegment) {
-                await onSegment(segment);
+            if (reachedMaxDigits && totalPages > DOMESTIC_MAX_PAGES) {
+                logger.info(`${searchValue}: ${total} 条，已达最大拆分深度，直接使用当前检索段（共 ${totalPages} 页）`);
+            } else {
+                logger.info(`${searchValue}: ${total} 条，使用当前检索段（共 ${totalPages} 页）`);
             }
+            await handleSegment(segment);
             return;
         }
 
-        if (depth + 1 > DOMESTIC_MAX_SEGMENT_DEPTH) {
-            throw new Error(`${searchValue}: 拆分深度已达 ${DOMESTIC_MAX_SEGMENT_DEPTH} 仍超过 ${DOMESTIC_MAX_PAGES} 页，请调整 NMPA_SEGMENT_DIGITS 或提高 NMPA_DOMESTIC_MAX_SEGMENT_DEPTH`);
+        const nextSuffixLength = suffixLength + 1;
+        if (nextSuffixLength > SEGMENT_MAX_DIGITS || depth + 1 > DOMESTIC_MAX_SEGMENT_DEPTH) {
+            const segment = {
+                searchValue,
+                total,
+                totalPages,
+                firstPayload: { ...payload, pageSize: effectivePageSize },
+                order: segmentIndex,
+            };
+            segmentIndex += 1;
+            logger.info(`${searchValue}: ${total} 条，拆分已达极限，直接使用当前检索段（共 ${totalPages} 页）`);
+            await handleSegment(segment);
+            return;
         }
 
         logger.info(`${searchValue}: ${total} 条，继续细分`);
@@ -530,6 +703,14 @@ async function crawlDomesticSegment(controller, segment, { prefix, logger }) {
                     payload = await fetchListPage(page, { itemId: DOMESTIC_ITEM_ID, searchValue: segment.searchValue, pageNum, pageSize: REQUEST_PAGE_SIZE });
                     rotationRecoveries = 0;
                 } catch (error) {
+                    if (error?.shouldCooldown) {
+                        logger.warning(`${segment.searchValue}: 第 ${pageNum} 页列表请求触发冷却(${error.message || error})`);
+                        await controller.cooldownAndRestart(`${segment.searchValue}: 列表触发冷却`, BROWSER_COOLDOWN_MS);
+                        rotationRecoveries = 0;
+                        payload = null;
+                        continue;
+                    }
+
                     const canRotate = controller.sequence.length > 1
                         && shouldRotateForListError(error)
                         && rotationRecoveries < controller.sequence.length * 3;
@@ -553,6 +734,7 @@ async function crawlDomesticSegment(controller, segment, { prefix, logger }) {
             if (DETAIL_BATCH_DELAY_MS > 0) await sleep(DETAIL_BATCH_DELAY_MS);
             const batchDetails = await fetchDetailsBatch(page, DOMESTIC_ITEM_ID, ids);
             let pageSuccessCount = 0;
+            let detailBlocked = false;
 
             for (let index = 0; index < ids.length; index++) {
                 const id = ids[index];
@@ -561,13 +743,15 @@ async function crawlDomesticSegment(controller, segment, { prefix, logger }) {
                     try {
                         const recovered = await fetchDetailWithRetry(page, DOMESTIC_ITEM_ID, id);
                         if (!recovered) {
-                            logger.warning(`${segment.searchValue}: 无法获取记录 ${id} 详情，已跳过`);
-                            continue;
+                            logger.warning(`${segment.searchValue}: 无法获取记录 ${id} 详情，触发冷却重试`);
+                            detailBlocked = true;
+                            break;
                         }
                         detailEntry = { detail: recovered, success: true };
                     } catch (error) {
-                        logger.warning(`${segment.searchValue}: 重试记录 ${id} 详情失败: ${error.message}`);
-                        continue;
+                        logger.warning(`${segment.searchValue}: 重试记录 ${id} 详情失败: ${error.message}，触发冷却`);
+                        detailBlocked = true;
+                        break;
                     }
                 }
 
@@ -589,18 +773,21 @@ async function crawlDomesticSegment(controller, segment, { prefix, logger }) {
                 await sleepRange(RECORD_DELAY_RANGE);
             }
 
+            if (detailBlocked) {
+                await controller.cooldownAndRestart(`${segment.searchValue}: 详情抓取失败`, BROWSER_COOLDOWN_MS);
+                payload = null;
+                rotationRecoveries = 0;
+                continue;
+            }
+
             const successRatio = pageSuccessCount / Math.max(1, ids.length);
 
             if (successRatio < DETAIL_SUCCESS_MIN_RATIO) {
                 consecutiveDetailFailures += 1;
-                logger.warning(`${segment.searchValue}: 第 ${pageNum} 页详情成功率 ${(successRatio * 100).toFixed(1)}%，尝试切换浏览器重试（连续 ${consecutiveDetailFailures} 页低于阈值）`);
-                const marked = controller.markCurrentBrowserUnhealthy('连续详情抓取失败');
-                if (marked || controller.sequence.length > 1) {
-                    await controller.rotateBrowser(`${segment.searchValue}: 连续详情失败`);
-                } else {
-                    await sleep(15000);
-                }
+                logger.warning(`${segment.searchValue}: 第 ${pageNum} 页详情成功率 ${(successRatio * 100).toFixed(1)}%，执行冷却重试（连续 ${consecutiveDetailFailures} 页低于阈值）`);
+                await controller.cooldownAndRestart(`${segment.searchValue}: 详情成功率过低`, BROWSER_COOLDOWN_MS);
                 payload = null;
+                rotationRecoveries = 0;
                 continue;
             } else {
                 consecutiveDetailFailures = 0;
@@ -730,7 +917,27 @@ async function crawlImported(page, logger) {
 }
 
 async function navigateToSearch(page) {
-    await page.goto(SEARCH_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    const homeResponse = await page.goto(HOME_URL, { waitUntil: 'domcontentloaded', timeout: 60000, referer: undefined });
+    const homeStatus = homeResponse?.status?.() ?? null;
+    if (homeStatus && homeStatus >= 400) {
+        const error = new Error(`首页返回状态码 ${homeStatus}`);
+        error.shouldCooldown = true;
+        throw error;
+    }
+    await page.waitForLoadState('networkidle', { timeout: 60000 }).catch(() => {});
+    if (NAVIGATION_HOME_WAIT_MS > 0) await sleep(NAVIGATION_HOME_WAIT_MS);
+    await page.waitForFunction(() => /acw_sc__v2/.test(document.cookie), { timeout: 30000 }).catch(() => {});
+
+    await page.evaluate((url) => {
+        window.location.href = url;
+    }, SEARCH_URL);
+    const searchResponse = await page.waitForNavigation({ url: SEARCH_URL, waitUntil: 'domcontentloaded', timeout: 60000 });
+    const status = searchResponse?.status?.() ?? null;
+    if (status && status >= 400) {
+        const error = new Error(`导航返回状态码 ${status}`);
+        error.shouldCooldown = true;
+        throw error;
+    }
     await page.waitForFunction(() => window.api && window.pajax && window.itemFileUrl, { timeout: 60000 });
 }
 

@@ -1,8 +1,8 @@
 #!/bin/bash
-echo "📊 NMPA 爬虫监控 - 20251018_135955"
+echo "📊 NMPA 爬虫监控 - 20251020_105246"
 echo "==============================="
 echo "进程状态:"
-ps -p 1876682 -o pid,etime,pcpu,pmem,cmd 2>/dev/null || echo "进程已结束"
+ps -p 3460733 -o pid,etime,pcpu,pmem,cmd 2>/dev/null || echo "进程已结束"
 echo ""
 RUNS_BASE="outputs/runs"
 LATEST_RUN=/tmp
@@ -16,6 +16,6 @@ else
 fi
 echo ""
 echo "最近日志:"
-tail -5 "crawler_20251018_135955.log" 2>/dev/null || echo "日志文件不存在"
+tail -5 "crawler_20251020_105246.log" 2>/dev/null || echo "日志文件不存在"
 echo ""
-echo "实时监控命令: tail -f crawler_20251018_135955.log"
+echo "实时监控命令: tail -f crawler_20251020_105246.log"
