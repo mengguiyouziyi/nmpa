@@ -1,4 +1,6 @@
 import hashlib
+import logging
+import random
 import time
 import urllib.parse
 from dataclasses import dataclass
@@ -25,9 +27,9 @@ DEFAULT_HEADERS = {
     "Sec-Fetch-Site": "same-origin",
     "Sec-Fetch-Mode": "cors",
     "Sec-Fetch-Dest": "empty",
-    "sec-ch-ua": '"Google Chrome";v="123", "Not?A_Brand";v="8", "Chromium";v="123"',
+    "sec-ch-ua": '\"Google Chrome\";v=\"123\", \"Not?A_Brand\";v=\"8\", \"Chromium\";v=\"123\"',
     "sec-ch-ua-mobile": "?0",
-    "sec-ch-ua-platform": '"Windows"',
+    "sec-ch-ua-platform": '\"Windows\"',
 }
 CONFIG_HEADERS = {
     "User-Agent": DEFAULT_HEADERS["User-Agent"],
@@ -41,6 +43,9 @@ WARMUP_URLS = [
     "https://www.nmpa.gov.cn/yaopin/",
     REFERER,
 ]
+BLOCK_COOLDOWN_RANGE = (600.0, 800.0)
+BLOCK_RETRY_LIMIT = 19
+logger = logging.getLogger("nmpa.client")
 
 
 def _sorted_query_string(pairs: Mapping[str, Any]) -> str:
@@ -215,13 +220,42 @@ class NMPAClient:
                     self._invalidate_timestamp()
                     time.sleep(0.8)
                     continue
+                if response.status_code == 403:
+                    self._invalidate_timestamp()
+                    if attempt <= retries:
+                        wait_seconds = random.uniform(*BLOCK_COOLDOWN_RANGE)
+                        logger.warning(
+                            "【客户端】%s %s 返回 403，第 %d/%d 次冷却 %.1f 秒",
+                            method,
+                            path,
+                            attempt,
+                            retries + 1,
+                            wait_seconds,
+                        )
+                        time.sleep(wait_seconds)
+                        continue
                 response.raise_for_status()
                 return response
             except requests.HTTPError as exc:
-                if getattr(exc.response, "status_code", None) == 412 and attempt <= retries:
+                status = getattr(exc.response, "status_code", None)
+                if status == 412 and attempt <= retries:
                     self._invalidate_timestamp()
                     last_exc = exc
                     time.sleep(0.8)
+                    continue
+                if status == 403 and attempt <= retries:
+                    self._invalidate_timestamp()
+                    wait_seconds = random.uniform(*BLOCK_COOLDOWN_RANGE)
+                    logger.warning(
+                        "【客户端】请求 %s %s 捕获 403，第 %d/%d 次冷却 %.1f 秒",
+                        method,
+                        path,
+                        attempt,
+                        retries + 1,
+                        wait_seconds,
+                    )
+                    last_exc = exc
+                    time.sleep(wait_seconds)
                     continue
                 raise
             except Exception as exc:
@@ -280,8 +314,40 @@ class NMPAClient:
 
         url = self._resolve("/config/DATE.json")
         params = {"date": int(now * 1000)}
-        resp = self.session.get(url, params=params, headers=CONFIG_HEADERS, timeout=10)
-        resp.raise_for_status()
+        attempts = 0
+        while True:
+            try:
+                resp = self.session.get(url, params=params, headers=CONFIG_HEADERS, timeout=10)
+                if resp.status_code == 403:
+                    if attempts >= BLOCK_RETRY_LIMIT:
+                        resp.raise_for_status()
+                    wait_seconds = random.uniform(*BLOCK_COOLDOWN_RANGE)
+                    logger.warning(
+                        "【客户端】DATE.json 返回 403，第 %d/%d 次冷却 %.1f 秒",
+                        attempts + 1,
+                        BLOCK_RETRY_LIMIT + 1,
+                        wait_seconds,
+                    )
+                    time.sleep(wait_seconds)
+                    attempts += 1
+                    continue
+                resp.raise_for_status()
+                break
+            except requests.HTTPError as exc:
+                status = getattr(exc.response, "status_code", None)
+                if status in (403, 412) and attempts < BLOCK_RETRY_LIMIT:
+                    wait_seconds = random.uniform(*BLOCK_COOLDOWN_RANGE)
+                    logger.warning(
+                        "【客户端】DATE.json 捕获 %s，第 %d/%d 次冷却 %.1f 秒",
+                        status,
+                        attempts + 1,
+                        BLOCK_RETRY_LIMIT + 1,
+                        wait_seconds,
+                    )
+                    time.sleep(wait_seconds)
+                    attempts += 1
+                    continue
+                raise
         date_header = resp.headers.get("Date")
         if not date_header:
             raise RuntimeError("NMPA response missing Date header")

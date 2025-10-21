@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # 简单可靠的proxy_off + 爬虫后台运行脚本
-# 直接替代: proxy_off & python3 crawler.py --log-level DEBUG
+# 直接替代: proxy_off & python3 crawler.py --log-level INFO
 
 set -e
 
-LOG_FILE="logs/crawler_debug_$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE="logs/crawler_info_$(date +%Y%m%d_%H%M%S).log"
 PID_FILE="crawler_proxy_off.pid"
 
 # 颜色
@@ -40,7 +40,7 @@ fi
 # 创建日志目录
 mkdir -p logs
 
-log "🚀 启动NMPA爬虫 (DEBUG模式 + 代理关闭)"
+log "🚀 启动NMPA爬虫 (INFO模式 + 代理关闭)"
 log "📄 日志文件: $LOG_FILE"
 
 # 创建执行脚本
@@ -82,8 +82,8 @@ echo "  http_proxy: '${http_proxy:-未设置}'"
 echo "  https_proxy: '${https_proxy:-未设置}'"
 echo "  all_proxy: '${all_proxy:-未设置}'"
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] 启动DEBUG模式爬虫..."
-python3 crawler.py --log-level DEBUG
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] 启动INFO模式爬虫..."
+python3 crawler.py --log-level INFO
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] ========== 进程结束 =========="
 EOF

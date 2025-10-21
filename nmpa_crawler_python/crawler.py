@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple
 
+import requests
+
 from client import NMPAClient
 
 DOMESTIC_ITEM_ID = "ff80808183cad75001840881f848179f"
@@ -20,13 +22,100 @@ SEGMENT_DIGITS = "0123456789"
 OUTPUT_ROOT = Path("outputs")
 DATASET_DIR = OUTPUT_ROOT / "datasets"
 DETAIL_DIR = OUTPUT_ROOT / "details"
+STATE_PATH = OUTPUT_ROOT / "run_state.json"
 
 PAGE_DELAY_RANGE = (1.8, 3.2)
 DETAIL_DELAY_RANGE = (2.6, 4.2)
 SEGMENT_DELAY_RANGE = (30.0, 48.0)
 DETAIL_BACKOFF_RANGE = (18.0, 30.0)
+BLOCK_COOLDOWN_RANGE = (600.0, 800.0)
+DETAIL_RETRY_LIMIT = 3
+BLOCK_RETRY_LIMIT = 19
 
 logger = logging.getLogger("nmpa.crawler")
+
+
+class RunStateManager:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.data: Dict[str, Dict[str, Dict[str, object]]] = {"segments": {}}
+        self._load()
+
+    def _load(self) -> None:
+        if not self.path.exists():
+            return
+        try:
+            with self.path.open("r", encoding="utf-8") as handle:
+                self.data = json.load(handle)
+            if not isinstance(self.data, dict):
+                self.data = {"segments": {}}
+            self.data.setdefault("segments", {})
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("【状态】加载 %s 失败：%s，使用空状态", self.path, exc)
+            self.data = {"segments": {}}
+
+    def _save(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = self.path.with_suffix(".tmp")
+        with tmp_path.open("w", encoding="utf-8") as handle:
+            json.dump(self.data, handle, ensure_ascii=False, indent=2)
+        tmp_path.replace(self.path)
+
+    def is_segment_completed(self, segment_value: str) -> bool:
+        entry = self.data["segments"].get(segment_value)
+        return bool(entry and entry.get("status") == "completed")
+
+    def get_segment_state(self, segment_value: str) -> Optional[Dict[str, object]]:
+        return self.data["segments"].get(segment_value)
+
+    def start_segment(self, segment: "SegmentResult") -> Dict[str, object]:
+        entry = self.data["segments"].get(segment.value)
+        now = time.time()
+        if not entry:
+            entry = {
+                "status": "in_progress",
+                "next_page": 1,
+                "total_pages": segment.total_pages,
+                "depth": segment.depth,
+                "updated": now,
+            }
+        else:
+            entry["status"] = "in_progress"
+            entry["total_pages"] = segment.total_pages
+            entry["depth"] = segment.depth
+            entry.setdefault("next_page", 1)
+            if not isinstance(entry.get("next_page"), int) or entry["next_page"] < 1:
+                entry["next_page"] = 1
+            entry["updated"] = now
+        self.data["segments"][segment.value] = entry
+        self._save()
+        return entry
+
+    def update_next_page(self, segment_value: str, next_page: int) -> None:
+        entry = self.data["segments"].setdefault(
+            segment_value,
+            {"status": "in_progress", "next_page": next_page, "total_pages": None, "depth": None},
+        )
+        entry["next_page"] = next_page
+        entry["updated"] = time.time()
+        self._save()
+
+    def mark_segment_completed(self, segment_value: str) -> None:
+        entry = self.data["segments"].setdefault(segment_value, {})
+        entry["status"] = "completed"
+        entry["next_page"] = None
+        entry["updated"] = time.time()
+        self._save()
+
+    def record_block_event(self, segment_value: Optional[str], context: str) -> None:
+        if not segment_value:
+            return
+        entry = self.data["segments"].setdefault(segment_value, {})
+        entry["last_block"] = {
+            "context": context,
+            "timestamp": time.time(),
+        }
+        self._save()
 
 
 @dataclass
@@ -60,13 +149,59 @@ def _sleep(range_pair: Tuple[float, float]) -> None:
     time.sleep(random.uniform(low, high))
 
 
+def _handle_block(
+    state_manager: Optional[RunStateManager],
+    reason: str,
+    *,
+    segment_value: Optional[str] = None,
+    wait_range: Tuple[float, float] = BLOCK_COOLDOWN_RANGE,
+) -> None:
+    wait_seconds = random.uniform(*wait_range)
+    logger.warning("【风控】%s，冷却 %.1f 秒后重试", reason, wait_seconds)
+    if state_manager and segment_value:
+        state_manager.record_block_event(segment_value, reason)
+    time.sleep(wait_seconds)
+
+
+def _load_existing_codes(segment_value: str, limit_page: int) -> Set[str]:
+    codes: Set[str] = set()
+    segment_dir = DATASET_DIR / segment_value
+    if not segment_dir.exists():
+        return codes
+    for page in range(1, max(1, limit_page)):
+        path = _dataset_page_path(segment_value, page)
+        if not path.exists():
+            continue
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    code = record.get("code")
+                    if code:
+                        codes.add(code)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("【段恢复】读取 %s 失败：%s", path, exc)
+    return codes
+
+
 def _ensure_directories() -> None:
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
     DATASET_DIR.mkdir(parents=True, exist_ok=True)
     DETAIL_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def fetch_first_page(client: NMPAClient, search_value: str, depth: int) -> Optional[SegmentResult]:
+def fetch_first_page(
+    client: NMPAClient,
+    search_value: str,
+    depth: int,
+    state_manager: Optional[RunStateManager],
+) -> Optional[SegmentResult]:
     logger.info("【拆分】%s 深度=%d -> 请求第 1 页", search_value, depth)
     params = {
         "itemId": DOMESTIC_ITEM_ID,
@@ -75,7 +210,23 @@ def fetch_first_page(client: NMPAClient, search_value: str, depth: int) -> Optio
         "pageSize": PAGE_SIZE,
         "isSenior": "N",
     }
-    response = client.get("/data/nmpadata/search", params=params)
+    attempt = 0
+    while True:
+        try:
+            response = client.get("/data/nmpadata/search", params=params)
+            break
+        except requests.HTTPError as exc:
+            status = getattr(exc.response, "status_code", None)
+            if status in (403, 412):
+                attempt += 1
+                if attempt > BLOCK_RETRY_LIMIT:
+                    raise
+                _handle_block(
+                    state_manager,
+                    f"{search_value} 第1页请求遇到 {status}，第 {attempt} 次冷却",
+                )
+                continue
+            raise
     payload = response.json()
     data = payload.get("data") or {}
     total = int(data.get("total") or 0)
@@ -109,6 +260,7 @@ def segment_queries(
     *,
     depth: int = 0,
     visited: Optional[Set[str]] = None,
+    state_manager: Optional[RunStateManager] = None,
 ) -> Iterator[SegmentResult]:
     if visited is None:
         visited = set()
@@ -116,7 +268,7 @@ def segment_queries(
         logger.debug("【拆分】%s: 已处理，跳过重复", base_value)
         return
     visited.add(base_value)
-    result = fetch_first_page(client, base_value, depth)
+    result = fetch_first_page(client, base_value, depth, state_manager)
     if result is None:
         return
     can_use_segment = (
@@ -159,16 +311,19 @@ def segment_queries(
             next_value,
             depth=depth + 1,
             visited=visited,
+            state_manager=state_manager,
         )
 
 
-def _prepare_segment_output(segment_value: str) -> None:
+def _prepare_segment_output(segment_value: str, *, reset: bool) -> None:
     segment_dir = DATASET_DIR / segment_value
-    if segment_dir.exists():
-        for file_path in segment_dir.glob("*.jsonl"):
-            file_path.unlink()
-    else:
+    if not segment_dir.exists():
         segment_dir.mkdir(parents=True, exist_ok=True)
+        return
+    if not reset:
+        return
+    for file_path in segment_dir.glob("*.jsonl"):
+        file_path.unlink()
 
 
 def _dataset_page_path(segment_value: str, page_number: int) -> Path:
@@ -231,7 +386,14 @@ def _detail_to_entry(detail: Dict) -> Optional[Dict[str, str]]:
     }
 
 
-def fetch_details(client: NMPAClient, records: Sequence[Dict], seen_codes: Set[str]) -> List[Dict[str, str]]:
+def fetch_details(
+    client: NMPAClient,
+    records: Sequence[Dict],
+    seen_codes: Set[str],
+    *,
+    state_manager: Optional[RunStateManager],
+    segment_value: str,
+) -> List[Dict[str, str]]:
     dataset_entries: List[Dict[str, str]] = []
     for record in records:
         record_id = record.get("f4") or record.get("id")
@@ -247,16 +409,38 @@ def fetch_details(client: NMPAClient, records: Sequence[Dict], seen_codes: Set[s
                 logger.debug("【详情】%s: 使用本地缓存", record_id)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("【详情】%s: 读取缓存失败(%s)，重新请求", record_id, exc)
-        if detail_payload is None:
+                detail_payload = None
+        attempts = 0
+        block_attempts = 0
+        while detail_payload is None and attempts <= DETAIL_RETRY_LIMIT:
             try:
-                detail_payload = _fetch_detail(client, record_id)
+                payload = _fetch_detail(client, record_id)
+                detail_payload = payload
                 if detail_payload is not None:
                     _persist_detail(record_id, detail_payload)
                 _sleep(DETAIL_DELAY_RANGE)
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("【详情】%s: 请求失败(%s)，执行退避", record_id, exc)
+            except requests.HTTPError as exc:
+                status = getattr(exc.response, "status_code", None)
+                if status in (403, 412):
+                    block_attempts += 1
+                    if block_attempts > BLOCK_RETRY_LIMIT:
+                        logger.warning("【详情】%s: 连续 %d 次触发 %s，跳过", record_id, BLOCK_RETRY_LIMIT, status)
+                        break
+                    _handle_block(
+                        state_manager,
+                        f"详情 {record_id} 返回 {status}（{block_attempts}/{BLOCK_RETRY_LIMIT}）",
+                        segment_value=segment_value,
+                    )
+                    continue
+                attempts += 1
+                logger.warning("【详情】%s: HTTP 错误(%s)，第 %d 次退避", record_id, status, attempts)
                 _sleep(DETAIL_BACKOFF_RANGE)
-                continue
+            except Exception as exc:  # noqa: BLE001
+                attempts += 1
+                logger.warning("【详情】%s: 请求异常(%s)，第 %d 次退避", record_id, exc, attempts)
+                _sleep(DETAIL_BACKOFF_RANGE)
+        if detail_payload is None:
+            continue
         detail = _extract_detail(detail_payload or {})
         if not detail:
             logger.debug("【详情】%s: 无 detail 字段，跳过", record_id)
@@ -275,9 +459,18 @@ def fetch_details(client: NMPAClient, records: Sequence[Dict], seen_codes: Set[s
     return dataset_entries
 
 
-def fetch_remaining_pages(client: NMPAClient, segment: SegmentResult, seen_codes: Set[str]) -> int:
+def fetch_remaining_pages(
+    client: NMPAClient,
+    segment: SegmentResult,
+    seen_codes: Set[str],
+    *,
+    state_manager: Optional[RunStateManager],
+    start_page: int,
+) -> int:
     total_written = 0
-    for page in range(2, segment.total_pages + 1):
+    if start_page > segment.total_pages:
+        return 0
+    for page in range(start_page, segment.total_pages + 1):
         logger.info(
             "【分页】%s: 请求第 %d/%d 页",
             segment.value,
@@ -291,17 +484,50 @@ def fetch_remaining_pages(client: NMPAClient, segment: SegmentResult, seen_codes
             "pageSize": PAGE_SIZE,
             "isSenior": "N",
         }
-        response = client.get("/data/nmpadata/search", params=params)
+        attempt = 0
+        block_attempts = 0
+        while True:
+            try:
+                response = client.get("/data/nmpadata/search", params=params)
+                break
+            except requests.HTTPError as exc:
+                status = getattr(exc.response, "status_code", None)
+                if status in (403, 412):
+                    block_attempts += 1
+                    if block_attempts > BLOCK_RETRY_LIMIT:
+                        raise
+                    _handle_block(
+                        state_manager,
+                        f"{segment.value} 第 {page} 页返回 {status}（{block_attempts}/{BLOCK_RETRY_LIMIT}）",
+                        segment_value=segment.value,
+                    )
+                    continue
+                attempt += 1
+                logger.warning("【分页】%s 第 %d 页异常(%s)，第 %d 次退避", segment.value, page, status, attempt)
+                _sleep(DETAIL_BACKOFF_RANGE)
         payload = response.json()
         records = payload.get("data", {}).get("list", []) or []
-        entries = fetch_details(client, records, seen_codes)
+        entries = fetch_details(
+            client,
+            records,
+            seen_codes,
+            state_manager=state_manager,
+            segment_value=segment.value,
+        )
         _write_dataset_records(segment.value, page, entries)
         total_written += len(entries)
+        if state_manager:
+            state_manager.update_next_page(segment.value, page + 1)
         _sleep(PAGE_DELAY_RANGE)
     return total_written
 
 
-def process_segment(client: NMPAClient, segment: SegmentResult) -> int:
+def process_segment(
+    client: NMPAClient,
+    segment: SegmentResult,
+    *,
+    state_manager: RunStateManager,
+) -> int:
     logger.info(
         "【段开始】%s: 总记录=%d, 页数=%d, 深度=%d",
         segment.value,
@@ -309,15 +535,40 @@ def process_segment(client: NMPAClient, segment: SegmentResult) -> int:
         segment.total_pages,
         segment.depth,
     )
-    _prepare_segment_output(segment.value)
-    seen_codes: Set[str] = set()
-    first_records = segment.first_payload.get("data", {}).get("list", []) or []
-    entries = fetch_details(client, first_records, seen_codes)
-    _write_dataset_records(segment.value, 1, entries)
-    total_written = len(entries)
-    if segment.total_pages > 1:
-        total_written += fetch_remaining_pages(client, segment, seen_codes)
+    segment_state = state_manager.start_segment(segment)
+    next_page = int(segment_state.get("next_page") or 1)
+    if next_page <= 1:
+        _prepare_segment_output(segment.value, reset=True)
+        seen_codes: Set[str] = set()
+    else:
+        logger.info("【段恢复】%s: 继续从第 %03d 页", segment.value, next_page)
+        _prepare_segment_output(segment.value, reset=False)
+        seen_codes = _load_existing_codes(segment.value, next_page)
+    total_written = len(seen_codes)
+
+    if next_page <= 1:
+        first_records = segment.first_payload.get("data", {}).get("list", []) or []
+        entries = fetch_details(
+            client,
+            first_records,
+            seen_codes,
+            state_manager=state_manager,
+            segment_value=segment.value,
+        )
+        _write_dataset_records(segment.value, 1, entries)
+        total_written += len(entries)
+        state_manager.update_next_page(segment.value, 2)
+
+    start_page = max(next_page, 2)
+    total_written += fetch_remaining_pages(
+        client,
+        segment,
+        seen_codes,
+        state_manager=state_manager,
+        start_page=start_page,
+    )
     logger.info("【段完成】%s: 本段共写入 %d 条", segment.value, total_written)
+    state_manager.mark_segment_completed(segment.value)
     _sleep(SEGMENT_DELAY_RANGE)
     return total_written
 
@@ -327,15 +578,19 @@ def crawl(
     base_queries: Iterable[str],
     *,
     max_segments: Optional[int] = None,
+    state_manager: RunStateManager,
 ) -> None:
     _ensure_directories()
     processed = 0
     total_records = 0
     for base in base_queries:
         logger.info("【入口】开始处理基础关键词：%s", base)
-        for segment in segment_queries(client, base):
+        for segment in segment_queries(client, base, state_manager=state_manager):
+            if state_manager.is_segment_completed(segment.value):
+                logger.info("【跳过】%s: 状态标记已完成，略过本段", segment.value)
+                continue
             logger.info("【队列】处理分段：%s (总记录=%d)", segment.value, segment.total)
-            written = process_segment(client, segment)
+            written = process_segment(client, segment, state_manager=state_manager)
             processed += 1
             total_records += written
             if max_segments is not None and processed >= max_segments:
@@ -378,7 +633,8 @@ def main() -> None:
     base_queries = args.queries or ["国药准字H", "国药准字S"]
     logger.info("【启动】NMPA 爬虫启动，基础关键词=%s", base_queries)
     client = NMPAClient(warmup_on_init=True, warmup_delay=1.5, timestamp_ttl=60.0)
-    crawl(client, base_queries, max_segments=args.max_segments)
+    state_manager = RunStateManager(STATE_PATH)
+    crawl(client, base_queries, max_segments=args.max_segments, state_manager=state_manager)
 
 
 if __name__ == "__main__":
