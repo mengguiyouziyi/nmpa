@@ -6,3 +6,33 @@ nmpa_crawler_nodejs/outputs/
 nmpa_crawler_nodejs/storage/
 nmpa_crawler_nodejs/logs/
 nmpa_crawler_nodejs/playwright/.cache/
+
+# Python virtual environments
+nmpa_crawler/venv/
+nmpa_crawler/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+
+# Node modules and large files
+nmpa_crawler_nodejs/node_modules/
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Large data files and outputs
+nmpa_crawler/outputs/
+*.log
+*.pid
+monitor_*.sh
