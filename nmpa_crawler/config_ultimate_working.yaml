@@ -1,0 +1,47 @@
+# 终极工作版NMPA爬虫配置 - 基于多个成功案例
+mode: ultimate_working
+output_dir: outputs
+
+# 基础配置
+headless: true
+max_pages: 2
+page_size: 10
+
+# 任务配置
+jobs:
+  - dataset: domestic
+    code_prefix: 国药准字H
+    max_pages: 1
+    page_size: 10
+
+  - dataset: domestic
+    code_prefix: 国药准字S
+    max_pages: 1
+    page_size: 10
+
+# 导出配置
+export:
+  formats: [excel, json]
+  include_raw: true
+
+# 反检测配置
+anti_detection:
+  # User-Agent轮换
+  user_agents_enabled: true
+
+  # 请求延迟
+  random_delay:
+    min: 1.0
+    max: 3.0
+
+  # 浏览器指纹伪装
+  fingerprint_spoofing: true
+
+  # IP代理（可选）
+  proxy_enabled: false
+
+# 重试配置
+retry:
+  max_attempts: 3
+  backoff_factor: 2
+  retry_on_failure: true

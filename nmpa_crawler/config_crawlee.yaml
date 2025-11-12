@@ -1,0 +1,42 @@
+# Crawlee 风格的 NMPA 爬虫配置
+mode: crawlee_style
+headless: true
+max_pages: 50
+max_concurrency: 2
+
+# Crawlee 风格的超时配置
+navigation_timeout: 60000  # 60秒导航超时
+request_handler_timeout: 60000  # 60秒请求处理超时
+max_request_retries: 3  # 最大重试次数
+
+# NMPA 网站配置
+target_domain: "www.nmpa.gov.cn"
+base_urls:
+  - "https://www.nmpa.gov.cn/yaopin/ypjgdt/index.html"  # 监管工作
+  - "https://www.nmpa.gov.cn/yaopin/ypggtg/index.html"  # 公告通知
+  - "https://www.nmpa.gov.cn/yaopin/ypfgwj/index.html"  # 法规文件
+  - "https://www.nmpa.gov.cn/yaopin/ypzhcjd/index.html"  # 政策解读
+  - "https://www.nmpa.gov.cn/zwfw/zwfwgggs/index.html"  # 政务服务公告
+
+# 反检测配置
+stealth_level: "high"  # high, medium, low
+random_delays: true
+delay_range: [1, 3]  # 秒
+
+# 输出配置
+export_format: "json"
+export_dir: "outputs/crawlee_style"
+log_level: "INFO"
+
+# 浏览器配置
+browser_type: "chromium"
+viewport:
+  width: 1920
+  height: 1080
+user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+# 代理配置（可选）
+# proxy:
+#   server: "http://proxy-server:port"
+#   username: "username"
+#   password: "password"

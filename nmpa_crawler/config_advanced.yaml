@@ -1,0 +1,57 @@
+# 高级真实数据NMPA爬虫配置 - 基于GitHub项目发现的完整技术栈
+mode: advanced_real
+output_dir: outputs
+
+# 基础配置
+headless: true
+max_pages: 1
+page_size: 10
+
+# 任务配置
+jobs:
+  # 生产许可证数据（最高成功率）
+  - dataset: license
+    code_prefix: SCXK
+    max_pages: 1
+    page_size: 10
+
+  # 境内生产药品
+  - dataset: domestic
+    code_prefix: 国药准字H
+    max_pages: 1
+    page_size: 10
+
+  # 生物制品
+  - dataset: domestic
+    code_prefix: 国药准字S
+    max_pages: 1
+    page_size: 10
+
+# 导出配置
+export:
+  formats: [excel, json]
+  include_raw: true
+
+# 高级反检测配置
+anti_detection:
+  # DrissionPage配置
+  drission_page:
+    headless: true
+    disable_images: true
+    disable_javascript: false
+
+  # 人类行为模拟
+  human_simulation:
+    random_delay: true
+    min_delay: 1.0
+    max_delay: 3.0
+
+  # User-Agent轮换
+  user_agent_rotation: true
+
+# API端点配置
+api_endpoints:
+  license_list: http://scxk.nmpa.gov.cn:81/xk/itownet/portalAction.do?method=getXkzsList
+  license_detail: http://scxk.nmpa.gov.cn:81/xk/itownet/portalAction.do?method=getXkzsById
+  drug_list: https://www.nmpa.gov.cn/datasearch/data/nmpadata/search
+  drug_api: https://api.nmpa.gov.cn/ypbhwss/v1/druginfo

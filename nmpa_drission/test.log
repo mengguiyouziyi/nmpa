@@ -1,0 +1,175 @@
+2025-10-22 17:42:43 | INFO | 启动 DrissionPage 模拟器，间隔=600 秒，关键词=国药准字H, 国药准字S, 国药准字Z，模式=单次
+2025-10-22 17:42:43 | INFO | ===== 自动化循环 #1 开始 =====
+2025-10-22 17:42:43 | INFO | 初始化 DrissionPage 有头浏览器 ...
+2025-10-22 17:42:43 | ERROR | 自动化循环异常：ChromiumPage.__new__() got an unexpected keyword argument 'session'
+Traceback (most recent call last):
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 146, in run
+    self.perform_cycle()
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 120, in perform_cycle
+    page = self._ensure_page()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 37, in _ensure_page
+    page = ChromiumPage(addr_or_opts=opts, session=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: ChromiumPage.__new__() got an unexpected keyword argument 'session'
+2025-10-22 17:42:48 | INFO | 启动 DrissionPage 模拟器，间隔=600 秒，关键词=国药准字H, 国药准字S, 国药准字Z，模式=单次
+2025-10-22 17:42:48 | INFO | ===== 自动化循环 #1 开始 =====
+2025-10-22 17:42:48 | INFO | 初始化 DrissionPage 有头浏览器 ...
+2025-10-22 17:43:18 | ERROR | 自动化循环异常：
+The browser connection fails.
+Address: 127.0.0.1:9222
+Tip: 
+1, the user folder does not conflict with the open browser 
+2, if no interface system, please add '--headless=new' startup parameter 
+3, if the system is Linux, try adding '--no-sandbox' boot parameter 
+The port and user folder paths can be set using ChromiumOptions.
+Version: 4.1.1.2
+Traceback (most recent call last):
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 146, in run
+    self.perform_cycle()
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 120, in perform_cycle
+    page = self._ensure_page()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 37, in _ensure_page
+    page = ChromiumPage(addr_or_opts=opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/langchao6/anaconda3/lib/python3.12/site-packages/DrissionPage/_pages/chromium_page.py", line 23, in __new__
+    browser = Chromium(addr_or_opts=addr_or_opts)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/langchao6/anaconda3/lib/python3.12/site-packages/DrissionPage/_base/chromium.py", line 41, in __new__
+    is_headless, browser_id, is_exists, ws_only = run_browser(opt)
+                                                  ^^^^^^^^^^^^^^^^
+  File "/home/langchao6/anaconda3/lib/python3.12/site-packages/DrissionPage/_base/chromium.py", line 501, in run_browser
+    is_exists = connect_browser(chromium_options)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/langchao6/anaconda3/lib/python3.12/site-packages/DrissionPage/_functions/browser.py", line 58, in connect_browser
+    raise BrowserConnectError(ADDRESS=address, TIP=_S._lang.BROWSER_CONNECT_ERR_INFO)
+DrissionPage.errors.BrowserConnectError: 
+The browser connection fails.
+Address: 127.0.0.1:9222
+Tip: 
+1, the user folder does not conflict with the open browser 
+2, if no interface system, please add '--headless=new' startup parameter 
+3, if the system is Linux, try adding '--no-sandbox' boot parameter 
+The port and user folder paths can be set using ChromiumOptions.
+Version: 4.1.1.2
+2025-10-22 17:43:26 | INFO | 启动 DrissionPage 模拟器，间隔=600 秒，关键词=国药准字H, 国药准字S, 国药准字Z，模式=单次
+2025-10-22 17:43:26 | INFO | ===== 自动化循环 #1 开始 =====
+2025-10-22 17:43:26 | INFO | 初始化 DrissionPage 浏览器 ...
+2025-10-22 17:43:26 | ERROR | 自动化循环异常：ChromiumBase.run_cdp() takes 2 positional arguments but 3 were given
+Traceback (most recent call last):
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 154, in run
+    self.perform_cycle()
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 128, in perform_cycle
+    page = self._ensure_page()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 46, in _ensure_page
+    page.run_cdp("Page.addScriptToEvaluateOnNewDocument", {
+TypeError: ChromiumBase.run_cdp() takes 2 positional arguments but 3 were given
+2025-10-22 17:44:01 | INFO | 启动 DrissionPage 模拟器，间隔=600 秒，关键词=国药准字H, 国药准字S, 国药准字Z，模式=单次
+2025-10-22 17:44:01 | INFO | ===== 自动化循环 #1 开始 =====
+2025-10-22 17:44:01 | INFO | 初始化 DrissionPage 浏览器 ...
+2025-10-22 17:44:02 | INFO | 模拟关键词：国药准字H
+2025-10-22 17:44:30 | ERROR | 自动化循环异常：
+No element found.
+Method: ele()
+Arguments: {'locator': 'css:.search-input input', 'index': 1, 'timeout': 8}
+Version: 4.1.1.2
+Traceback (most recent call last):
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 153, in run
+    self.perform_cycle()
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 132, in perform_cycle
+    self._type_keyword(page, keyword)
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 70, in _type_keyword
+    element.clear()
+    ^^^^^^^^^^^^^
+  File "/home/langchao6/anaconda3/lib/python3.12/site-packages/DrissionPage/_elements/none_element.py", line 37, in __getattr__
+    raise ElementNotFoundError(METHOD=self.method, ARGS=self.args)
+DrissionPage.errors.ElementNotFoundError: 
+No element found.
+Method: ele()
+Arguments: {'locator': 'css:.search-input input', 'index': 1, 'timeout': 8}
+Version: 4.1.1.2
+2025-10-22 17:44:30 | INFO | 关闭浏览器。
+2025-10-22 17:44:46 | INFO | 启动 DrissionPage 模拟器，间隔=600 秒，关键词=国药准字H, 国药准字S, 国药准字Z，模式=单次
+2025-10-22 17:44:46 | INFO | ===== 自动化循环 #1 开始 =====
+2025-10-22 17:44:46 | INFO | 初始化 DrissionPage 浏览器 ...
+2025-10-22 17:44:46 | INFO | 模拟关键词：国药准字S
+2025-10-22 17:44:50 | INFO | 使用 URL 参数搜索：国药准字S
+2025-10-22 17:45:19 | INFO | 使用页面搜索框进行搜索
+2025-10-22 17:45:19 | ERROR | 自动化循环异常：
+No element found.
+Method: ele()
+Arguments: {'locator': "css:input[type='text']", 'index': 1, 'timeout': 5}
+Version: 4.1.1.2
+Traceback (most recent call last):
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 184, in run
+    self.perform_cycle()
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 163, in perform_cycle
+    self._type_keyword(page, keyword)
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 78, in _type_keyword
+    element.clear()
+    ^^^^^^^^^^^^^
+  File "/home/langchao6/anaconda3/lib/python3.12/site-packages/DrissionPage/_elements/none_element.py", line 37, in __getattr__
+    raise ElementNotFoundError(METHOD=self.method, ARGS=self.args)
+DrissionPage.errors.ElementNotFoundError: 
+No element found.
+Method: ele()
+Arguments: {'locator': "css:input[type='text']", 'index': 1, 'timeout': 5}
+Version: 4.1.1.2
+2025-10-22 17:45:19 | INFO | 关闭浏览器。
+2025-10-22 17:45:40 | INFO | 启动 DrissionPage 模拟器，间隔=600 秒，关键词=国药准字H, 国药准字S, 国药准字Z，模式=单次
+2025-10-22 17:45:40 | INFO | ===== 自动化循环 #1 开始 =====
+2025-10-22 17:45:40 | INFO | 初始化 DrissionPage 浏览器 ...
+2025-10-22 17:45:40 | INFO | 模拟关键词：国药准字H
+2025-10-22 17:45:44 | INFO | 使用 URL 参数搜索：国药准字H
+2025-10-22 17:46:06 | INFO | 未检测到搜索结果，尝试在页面中查找搜索框进行手动搜索
+2025-10-22 17:46:41 | INFO | 使用页面搜索框进行搜索
+2025-10-22 17:46:41 | ERROR | 自动化循环异常：
+No element found.
+Method: ele()
+Arguments: {'locator': "xpath://input[contains(@name,'keyword')]", 'index': 1, 'timeout': 5}
+Version: 4.1.1.2
+Traceback (most recent call last):
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 216, in run
+    self.perform_cycle()
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 195, in perform_cycle
+    self._type_keyword(page, keyword)
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 105, in _type_keyword
+    element.clear()
+    ^^^^^^^^^^^^^
+  File "/home/langchao6/anaconda3/lib/python3.12/site-packages/DrissionPage/_elements/none_element.py", line 37, in __getattr__
+    raise ElementNotFoundError(METHOD=self.method, ARGS=self.args)
+DrissionPage.errors.ElementNotFoundError: 
+No element found.
+Method: ele()
+Arguments: {'locator': "xpath://input[contains(@name,'keyword')]", 'index': 1, 'timeout': 5}
+Version: 4.1.1.2
+2025-10-22 17:46:41 | INFO | 关闭浏览器。
+2025-10-22 17:47:30 | INFO | 启动 DrissionPage 模拟器，间隔=600 秒，关键词=国药准字H, 国药准字S, 国药准字Z，模式=单次
+2025-10-22 17:47:30 | INFO | ===== 自动化循环 #1 开始 =====
+2025-10-22 17:47:30 | INFO | 初始化 DrissionPage 浏览器 ...
+2025-10-22 17:47:31 | INFO | 模拟关键词：国药准字Z
+2025-10-22 17:47:33 | INFO | 使用 URL 参数搜索：国药准字Z
+2025-10-22 17:47:56 | INFO | 未检测到搜索结果，尝试在页面中查找搜索框进行手动搜索
+2025-10-22 17:48:31 | WARNING | 未找到搜索输入框和搜索结果，继续执行其他操作
+2025-10-22 17:48:57 | INFO | 未找到详情链接。
+2025-10-22 17:49:14 | INFO | 未找到下一页按钮。
+2025-10-22 17:49:14 | ERROR | 自动化循环异常：Scroller.to_bottom() got an unexpected keyword argument 'ratio'
+Traceback (most recent call last):
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 226, in run
+    self.perform_cycle()
+  File "/home/langchao6/projects/taya/nmpa/nmpa_drission/automation.py", line 214, in perform_cycle
+    page.scroll.to_bottom(ratio=random.uniform(0.3, 0.9))
+TypeError: Scroller.to_bottom() got an unexpected keyword argument 'ratio'
+2025-10-22 17:49:14 | INFO | 关闭浏览器。
+2025-10-22 17:49:24 | INFO | 启动 DrissionPage 模拟器，间隔=600 秒，关键词=国药准字H, 国药准字S, 国药准字Z，模式=单次
+2025-10-22 17:49:24 | INFO | ===== 自动化循环 #1 开始 =====
+2025-10-22 17:49:24 | INFO | 初始化 DrissionPage 浏览器 ...
+2025-10-22 17:49:24 | INFO | 模拟关键词：国药准字Z
+2025-10-22 17:49:28 | INFO | 使用 URL 参数搜索：国药准字Z
+2025-10-22 17:49:50 | INFO | 未检测到搜索结果，尝试在页面中查找搜索框进行手动搜索
+2025-10-22 17:50:25 | WARNING | 未找到搜索输入框和搜索结果，继续执行其他操作
+2025-10-22 17:50:51 | INFO | 未找到详情链接。
+2025-10-22 17:51:08 | INFO | 未找到下一页按钮。
+2025-10-22 17:51:09 | INFO | 关闭浏览器。

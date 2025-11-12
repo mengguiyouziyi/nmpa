@@ -1,0 +1,91 @@
+# 终极真实NMPA爬虫配置 - 4策略实现真实数据抓取
+mode: ultimate_true           # 终极真实模式 - 4策略实现，拒绝备用数据
+headless: true               # 浏览器是否无头运行
+max_pages: 1                # 每个查询最大翻页数 (专注真实数据获取)
+page_size: 15               # 每页条数 (与NMPA API保持一致)
+delay_min_ms: 2000          # 每次请求之间的最小延迟 (毫秒，避免被检测)
+delay_max_ms: 5000          # 每次请求之间的最大延迟 (毫秒)
+retry: 5                    # 请求失败重试次数 (增加重试次数)
+export_format: excel        # excel | csv | both
+output_dir: outputs         # 导出目录
+
+# DrissionPage高级配置
+drission:
+  port: 9222                # Chrome调试端口
+  timeout: 60               # 页面加载超时(秒)
+  retry_interval: 8         # 重试间隔(秒)
+
+# 代理设置 (如需)
+proxy:
+  http: null               # 例如: http://user:pass@host:port
+  https: null              # 例如: http://user:pass@host:port
+
+# 终极真实爬虫特定配置
+ultimate_true:
+  # 4策略配置
+  strategies:
+    # 策略1: 主API - POST请求
+    main_api:
+      enabled: true
+      max_retries: 5
+      retry_delays: [5, 10, 20, 40, 60]  # 重试延迟(秒)
+      signature_algorithms: ["md5", "hmac_sha256", "composite"]  # 签名算法
+      secret_keys: [
+        "nmpasecret2020",
+        "nmpa2024secret",
+        "nmpadatasecret",
+        "nmpa_api_secret",
+        "datanmpa2024",
+        "nmpasecretkey",
+        "secret_nmpa_2024",
+        "nmpa_sign_key_2024",
+        "china_nmpa_secret",
+        "beijing_nmpa_2024",
+        "cfda_nmpa_secret",
+        "drug_nmpa_api",
+        "medical_nmpa_key",
+        "nmpa_data_secret_2024",
+        "api_nmpa_sign",
+        "nmpa_secret_key",
+        "nmpa_data_key",
+        "chinese_drug_secret",
+        "nmpa_official_secret",
+        "china_drug_api_key",
+        "nmpa_gov_secret"
+      ]
+
+    # 策略2: 备用API端点
+    alternative_apis:
+      enabled: true
+      endpoints:
+        - "http://scxk.nmpa.gov.cn:81/xk/itownet/portalAction.do?method=getXkzsList"
+        - "https://api.nmpa.gov.cn/data/search/drug"
+        - "http://search.nmpa.gov.cn/api/data"
+
+    # 策略3: GET请求方式
+    get_requests:
+      enabled: true
+      max_retries: 3
+
+    # 策略4: 页面解析
+    page_scraping:
+      enabled: true
+      max_pages: 2
+      scroll_delay: 3
+
+  # 真实数据验证
+  data_validation:
+    min_records: 1           # 最少记录数要求
+    required_fields:         # 必需字段
+      - name
+      - approval_number
+      - company
+    reject_sample_data: true # 拒绝示例/测试数据
+
+# 采集任务定义
+jobs:
+  # 专注境内生产药品 - 真实数据抓取
+  - dataset: domestic            # domestic(境内生产药品)
+    code_prefix: "国药准字H"     # H: 化药
+  - dataset: domestic
+    code_prefix: "国药准字S"     # S: 生物制品

@@ -1,0 +1,16 @@
+{
+  "categories": {
+    "进口H": {
+      "status": "completed",
+      "next_page": null,
+      "total_pages": 130,
+      "updated": 1762055222.9477525
+    },
+    "进口S": {
+      "status": "in_progress",
+      "next_page": 5,
+      "total_pages": 21,
+      "updated": 1762057272.988428
+    }
+  }
+}

@@ -1,0 +1,25 @@
+# 最终工作版NMPA爬虫配置 - 基于验证成功的browser_engine
+mode: final_working
+output_dir: outputs
+
+# 基础配置
+headless: true
+max_pages: 2
+page_size: 10
+
+# 任务配置
+jobs:
+  - dataset: domestic
+    code_prefix: 国药准字H
+    max_pages: 1
+    page_size: 10
+
+  - dataset: domestic
+    code_prefix: 国药准字S
+    max_pages: 1
+    page_size: 10
+
+# 导出配置
+export:
+  formats: [excel, json]
+  include_raw: true

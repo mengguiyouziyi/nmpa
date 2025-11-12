@@ -1,0 +1,46 @@
+# 真实数据NMPA爬虫配置 - 基于GitHub项目发现的签名算法
+mode: real_data
+output_dir: outputs
+
+# 基础配置
+headless: true
+max_pages: 2
+page_size: 10
+
+# 任务配置
+jobs:
+  # 生产许可证数据（成功率最高）
+  - dataset: license
+    code_prefix: SCXK
+    max_pages: 1
+    page_size: 10
+
+  # 境内生产药品
+  - dataset: domestic
+    code_prefix: 国药准字H
+    max_pages: 1
+    page_size: 10
+
+  # 生物制品
+  - dataset: domestic
+    code_prefix: 国药准字S
+    max_pages: 1
+    page_size: 10
+
+# 导出配置
+export:
+  formats: [excel, json]
+  include_raw: true
+
+# 签名配置
+signature:
+  secret_key: nmpasecret2020
+  algorithms: [magical_spider, standard_md5]
+  timeout: 30
+
+# API端点配置
+api_endpoints:
+  license_list: http://scxk.nmpa.gov.cn:81/xk/itownet/portalAction.do?method=getXkzsList
+  license_detail: http://scxk.nmpa.gov.cn:81/xk/itownet/portalAction.do?method=getXkzsById
+  domestic_drug: https://www.nmpa.gov.cn/datasearch/data/nmpadata/search
+  imported_drug: https://www.nmpa.gov.cn/datasearch/data/nmpadata/search

@@ -1,0 +1,7 @@
+2025/10/24-08:08:37.099 3bbc4 Reusing MANIFEST /home/langchao6/projects/taya/nmpa/nmpa_drission/chrome_profile/Default/IndexedDB/https_www.nmpa.gov.cn_0.indexeddb.leveldb/MANIFEST-000001
+2025/10/24-08:08:37.099 3bbc4 Recovering log #3
+2025/10/24-08:08:37.100 3bbc4 Reusing old log /home/langchao6/projects/taya/nmpa/nmpa_drission/chrome_profile/Default/IndexedDB/https_www.nmpa.gov.cn_0.indexeddb.leveldb/000003.log 
+2025/10/24-08:08:39.935 3bbc4 Level-0 table #5: started
+2025/10/24-08:08:39.937 3bbc4 Level-0 table #5: 6707 bytes OK
+2025/10/24-08:08:39.938 3bbc4 Delete type=0 #3
+2025/10/24-08:08:39.939 3bbc4 Manual compaction at level-0 from (begin) .. (end); will stop at (end)

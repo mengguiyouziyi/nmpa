@@ -1,0 +1,21 @@
+2025/10/22-19:38:10.539 f5512 Reusing MANIFEST /home/langchao6/projects/taya/nmpa/nmpa_drission/chrome_profile/Default/Local Storage/leveldb/MANIFEST-000001
+2025/10/22-19:38:10.555 f5512 Recovering log #16
+2025/10/22-19:38:10.556 f5512 Reusing old log /home/langchao6/projects/taya/nmpa/nmpa_drission/chrome_profile/Default/Local Storage/leveldb/000016.log 
+2025/10/22-19:39:10.563 f5514 Level-0 table #20: started
+2025/10/22-19:39:10.568 f5514 Level-0 table #20: 28934 bytes OK
+2025/10/22-19:39:10.571 f5514 Delete type=0 #16
+2025/10/22-19:39:10.572 f5514 Compacting 4@0 + 1@1 files
+2025/10/22-19:39:10.578 f5514 Generated table #21@0: 18 keys, 30215 bytes
+2025/10/22-19:39:10.578 f5514 Compacted 4@0 + 1@1 files => 30215 bytes
+2025/10/22-19:39:10.579 f5514 compacted to: files[ 0 1 1 0 0 0 0 ]
+2025/10/22-19:39:10.580 f5514 Delete type=2 #14
+2025/10/22-19:39:10.581 f5514 Delete type=2 #20
+2025/10/22-19:39:10.581 f5514 Delete type=2 #8
+2025/10/22-19:39:10.581 f5514 Delete type=2 #17
+2025/10/22-19:39:10.581 f5514 Delete type=2 #11
+2025/10/23-00:48:20.104 f5514 Level-0 table #23: started
+2025/10/23-00:48:20.107 f5514 Level-0 table #23: 48832 bytes OK
+2025/10/23-00:48:20.109 f5514 Delete type=0 #19
+2025/10/23-05:53:20.105 f5514 Level-0 table #25: started
+2025/10/23-05:53:20.108 f5514 Level-0 table #25: 48833 bytes OK
+2025/10/23-05:53:20.110 f5514 Delete type=0 #22

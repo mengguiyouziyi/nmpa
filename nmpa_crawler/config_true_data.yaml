@@ -1,0 +1,90 @@
+# 真实数据NMPA爬虫配置 - 只获取真实数据，不使用备用数据
+mode: true_data
+output_dir: outputs
+
+# 基础配置
+headless: true
+max_pages: 2
+page_size: 15
+
+# 任务配置 - 专注于真实数据获取
+jobs:
+  # 生产许可证数据（成功率最高）
+  - dataset: license
+    code_prefix: SCXK
+    max_pages: 1
+    page_size: 15
+
+  # 境内化学药品
+  - dataset: domestic
+    code_prefix: 国药准字H
+    max_pages: 1
+    page_size: 10
+
+  # 生物制品
+  - dataset: domestic
+    code_prefix: 国药准字S
+    max_pages: 1
+    page_size: 10
+
+# 导出配置
+export:
+  formats: [excel, json]
+  include_raw: true
+
+# 真实API配置
+real_api:
+  # 生产许可证API
+  license_api:
+    base_url: http://scxk.nmpa.gov.cn:81/xk/itownet/portalAction.do
+    methods: [getXkzsList, getXkzsById]
+  
+  # 药品数据API
+  drug_apis:
+    - https://www.nmpa.gov.cn/datasearch/data/nmpadata/search
+    - https://app1.nmpa.gov.cn/data/search
+    - https://api.nmpa.gov.cn/ypbhwss/v1/druginfo
+    - https://search.nmpa.gov.cn/api/search
+
+# 签名配置
+signature:
+  secret_keys:
+    - nmpasecret2020      # magical_spider项目
+    - nmpa_data_2024     # 备用密钥1
+    - china_nmpa_key     # 备用密钥2
+    - datasearch2024     # 备用密钥3
+    - nmpa_key_2024      # 备用密钥4
+    - cfda_2024_key      # 备用密钥5
+    - search_nmpa_2024   # 备用密钥6
+    - medical_data_2024  # 备用密钥7
+  
+  algorithms: [v1_sorted, v2_urlencoded, v3_timestamp]
+
+# 反检测配置
+anti_detection:
+  # DrissionPage配置
+  drission_page:
+    headless: true
+    disable_automation_detection: true
+  
+  # 请求延迟
+  delays:
+    min: 1.0
+    max: 3.0
+  
+  # User-Agent轮换
+  user_agents:
+    - Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+    - Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+
+# 数据质量控制
+quality_control:
+  # 只获取真实数据，不使用备用数据
+  real_data_only: true
+  
+  # 最小数据量要求
+  min_records: 1
+  
+  # 数据验证
+  validate_fields: true
+  required_fields: [name, approval_number, company]

@@ -1,0 +1,90 @@
+# 真实用户NMPA爬虫配置 - 基于用户能正常访问的事实
+mode: real_user             # 真实用户模式 - 直接HTTP请求
+max_pages: 1               # 每个查询最大翻页数
+page_size: 20              # 每页条数
+delay_min_ms: 2000         # 最小延迟 (毫秒)
+delay_max_ms: 6000         # 最大延迟 (毫秒)
+retry: 3                   # 请求失败重试次数
+export_format: excel       # excel | csv | both
+output_dir: outputs        # 导出目录
+
+# 代理设置 (如需)
+proxy:
+  http: null              # 例如: http://user:pass@host:port
+  https: null             # 例如: http://user:pass@host:port
+
+# 真实用户请求配置
+real_user:
+  # Session建立配置
+  session_establishment:
+    visit_main_page: true          # 访问主站
+    visit_data_search: true       # 访问数据查询页面
+    analyze_content: true         # 分析页面内容
+
+  # 智能延迟配置
+  smart_delays:
+    page_load: 3                 # 页面加载延迟 (秒)
+    request_interval: 5           # 请求间隔 (秒)
+    api_retry: 8                  # API重试延迟 (秒)
+
+  # API端点尝试
+  api_endpoints:
+    - "https://www.nmpa.gov.cn/datasearch/data/nmpadata/search"
+    - "https://www.nmpa.gov.cn/datasearch/data/search"
+    - "https://www.nmpa.gov.cn/datasearch/api/search"
+    - "https://www.nmpa.gov.cn/datasearch/search/data"
+    - "https://search.nmpa.gov.cn/api/data"
+
+  # 请求参数变化
+  param_variations:
+    base_params:
+      pageNo: "1"
+      pageSize: "20"
+      searchType: "1"
+
+    variations:
+      - tableName: "TABLE25"
+        viewTitle: "TABLE25"
+      - tableId: "25"
+        viewType: "domestic"
+      - category: "drug"
+        type: "domestic"
+      - drugType: "H"
+        production: "domestic"
+
+# 数据解析配置
+parsing:
+  methods:
+    - "json_api"            # JSON API解析
+    - "html_regex"          # HTML正则表达式解析
+    - "fallback_text"       # 回退文本解析
+
+  # 药品信息提取模式
+  drug_patterns:
+    - '国药准字([HFJZTB]\d{8})\s+([^\n]+?)\s+([^\n]*?(?:股份有限公司|有限公司|制药厂|药业)[^\n]*?)'
+    - '([^\n]+?)\s+国药准字([HFJZTB]\d{8})\s+([^\n]*?(?:股份有限公司|有限公司|制药厂|药业)[^\n]*?)'
+    - '<td[^>]*>([^<]*国药准字[HFJZTB]\d{8}[^<]*)</td>\s*<td[^>]*>([^<]*)</td>\s*<td[^>]*>([^<]*)</td>'
+
+  # 数据验证
+  validation:
+    require_approval: true        # 必须有批准文号
+    min_name_length: 2           # 最小名称长度
+    company_keywords:             # 公司关键词
+      - "股份有限公司"
+      - "有限公司"
+      - "制药厂"
+      - "药业"
+
+# 真实浏览器头部
+browser_headers:
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+  accept_language: "zh-CN,zh;q=0.9,en;q=0.8"
+  accept_encoding: "gzip, deflate, br, zstd"
+  connection: "keep-alive"
+  upgrade_insecure_requests: "1"
+
+# 采集任务定义
+jobs:
+  # 真实用户测试
+  - dataset: domestic            # domestic(境内生产药品)
+    code_prefix: "国药准字H"     # H: 化药

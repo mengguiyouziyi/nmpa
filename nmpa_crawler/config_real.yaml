@@ -1,0 +1,55 @@
+# 真实NMPA爬虫配置 - 基于深度JavaScript逆向分析
+mode: real
+output_dir: outputs
+
+# 基础配置
+headless: true
+max_pages: 2
+page_size: 10
+
+# 任务配置
+jobs:
+  - dataset: domestic
+    code_prefix: 国药准字H
+    max_pages: 1
+    page_size: 10
+
+  - dataset: domestic
+    code_prefix: 国药准字S
+    max_pages: 1
+    page_size: 10
+
+# 导出配置
+export:
+  formats: [excel, json]
+  include_raw: true
+
+# 真实API配置
+real_api:
+  # 基于分析的API端点
+  endpoint: "/datasearch/data/nmpadata/search"
+
+  # 数据集ID映射
+  dataset_ids:
+    domestic: "ff80808183cad75001840881f848179f"
+    imported: "ff80808183cad75001840881f84817a0"
+    medical_devices: "ff80808183cad75001840881f84817a1"
+    cosmetics: "ff80808183cad75001840881f84817a2"
+    otc: "ff80808183cad75001840881f84817a3"
+
+  # 签名配置
+  signature:
+    algorithms: [v1, v2, v3, v4, v5]  # 尝试的签名算法
+    secret_keys_count: 20           # 密钥候选数量
+
+  # Selenium Wire配置（用于捕获真实签名）
+  selenium_capture:
+    enabled: true
+    timeout: 30
+    chrome_version: 140
+
+  # 请求配置
+  request:
+    timeout: 30
+    max_retries: 3
+    retry_delay: 2

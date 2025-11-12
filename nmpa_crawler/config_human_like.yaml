@@ -1,0 +1,86 @@
+# 人类行为模拟NMPA爬虫配置 - 完全模拟真实用户行为
+mode: human_like             # 人类行为模拟模式 - 完全模拟真实用户
+headless: false              # 显示浏览器以便观察人类行为
+max_pages: 1                # 每个查询最大翻页数
+page_size: 20               # 每页条数 (与NMPA网站保持一致)
+delay_min_ms: 2000          # 最小延迟 (毫秒)
+delay_max_ms: 8000          # 最大延迟 (毫秒)
+retry: 3                    # 请求失败重试次数
+export_format: excel        # excel | csv | both
+output_dir: outputs         # 导出目录
+
+# DrissionPage人类行为配置
+drission:
+  port: 9227                # Chrome调试端口
+  timeout: 120              # 页面加载超时(秒)
+  window_size: "1366,768"   # 常见分辨率
+
+# 代理设置 (如需)
+proxy:
+  http: null               # 例如: http://user:pass@host:port
+  https: null              # 例如: http://user:pass@host:port
+
+# 人类行为模拟配置
+human_behavior:
+  # 打字行为
+  typing:
+    min_speed: 50          # 最小打字速度 (毫秒/字符)
+    max_speed: 150         # 最大打字速度 (毫秒/字符)
+    mistakes_rate: 0.02    # 打字错误率 (2%)
+
+  # 鼠标行为
+  mouse:
+    min_speed: 100         # 最鼠标移动速度 (毫秒)
+    max_speed: 300         # 最大鼠标移动速度 (毫秒)
+    random_movement: true   # 随机鼠标移动
+    scroll_variance: 200    # 滚动变化量
+
+  # 阅读行为
+  reading:
+    min_time: 2            # 最小阅读时间 (秒)
+    max_time: 8             # 最大阅读时间 (秒)
+    regression_rate: 0.1    # 回读率
+
+  # 点击行为
+  clicking:
+    min_delay: 0.5         # 最小点击延迟 (秒)
+    max_delay: 2.0         # 最大点击延迟 (秒)
+    accuracy: 0.95         # 点击准确度
+
+  # 浏览行为
+  browsing:
+    page_think_min: 3      # 页面思考时间最小值 (秒)
+    page_think_max: 10     # 页面思考时间最大值 (秒)
+    scroll_frequency: 3     # 滚动频率 (次/页面)
+    random_tabs: false      # 随机打开标签页
+
+# 反检测配置
+anti_detection:
+  webdriver_removal: true     # 移除webdriver痕迹
+  navigator_spoofing: true    # 伪造navigator属性
+  chrome_emulation: true      # Chrome浏览器模拟
+  permissions_api: true       # 权限API模拟
+  plugins_spoofing: true      # 插件伪造
+  languages_spoofing: true    # 语言伪造
+  screen_resolution: "1366x768" # 屏幕分辨率
+
+# 数据提取配置
+extraction:
+  methods:
+    - "page_scraping"        # 页面解析
+    - "javascript_extraction" # JavaScript提取
+    - "direct_api"           # 直接API调用
+    - "regex_parsing"        # 正则表达式解析
+
+  validation:
+    min_results: 1           # 最少结果数
+    required_fields:         # 必需字段
+      - name
+      - approval_number
+    data_quality_check: true  # 数据质量检查
+
+# 采集任务定义
+jobs:
+  # 境内生产药品 - 人类行为模拟
+  - dataset: domestic            # domestic(境内生产药品)
+    code_prefix: "国药准字H"     # H: 化药

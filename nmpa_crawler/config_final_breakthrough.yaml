@@ -1,0 +1,141 @@
+# 最终突破NMPA爬虫配置 - 专门解决502和412错误
+mode: final_breakthrough
+output_dir: outputs
+
+# 基础配置
+headless: true
+max_pages: 1
+page_size: 15
+
+# 任务配置 - 专注生产许可证数据（突破成功率最高）
+jobs:
+  # 生产许可证数据（最终突破目标）
+  - dataset: license
+    code_prefix: SCXK
+    max_pages: 1
+    page_size: 15
+
+# 导出配置
+export:
+  formats: [excel, json]
+  include_raw: true
+
+# 最终突破技术配置
+final_breakthrough:
+  # DrissionPage高级配置
+  drission_page:
+    headless: true
+    window_size: "1920,1080"
+    port: 9222
+    advanced_anti_detection: true
+  
+  # 会话建立策略（解决412错误）
+  session_management:
+    multi_step_session: true
+    user_behavior_simulation: true
+    localStorage_setup: true
+    sessionStorage_setup: true
+    cookie_sync: true
+    page_interaction: true
+    javascript_execution: true
+    
+  # 智能重试策略（解决502错误）
+  smart_retry:
+    max_retries: 5
+    retry_delays: [3, 8, 15, 30, 60]
+    random_variation: true
+    error_detection:
+      - 502: "server_unavailable"
+      - 412: "session_invalid"
+      - 403: "access_denied"
+    recovery_actions:
+      502: "wait_and_retry"
+      412: "rebuild_session"
+      403: "stop_execution"
+
+# 精确API配置
+api_endpoints:
+  license:
+    base_url: http://scxk.nmpa.gov.cn:81/xk/itownet/portalAction.do
+    method: getXkzsList
+    timeout: 30
+
+# 精确请求头配置（基于真实浏览器）
+headers:
+  browser:
+    User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+    Accept-Language: "zh-CN,zh;q=0.9,en;q=0.8"
+    Accept-Encoding: "gzip, deflate, br"
+    Connection: "keep-alive"
+    Upgrade-Insecure-Requests: "1"
+    Sec-Fetch-Dest: "document"
+    Sec-Fetch-Mode: "navigate"
+    Sec-Fetch-Site: "none"
+    Sec-Fetch-User: "?1"
+    Cache-Control: "max-age=0"
+    DNT: "1"
+    Sec-CH-UA: '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"'
+    Sec-CH-UA-Mobile: "?0"
+    Sec-CH-UA-Platform: '"Windows"'
+  
+  api:
+    User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    Accept: "application/json, text/javascript, */*; q=0.01"
+    Accept-Language: "zh-CN,zh;q=0.9,en;q=0.8"
+    Accept-Encoding: "gzip, deflate, br"
+    Connection: "keep-alive"
+    Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+    X-Requested-With: "XMLHttpRequest"
+    DNT: "1"
+    Referer: "http://scxk.nmpa.gov.cn:81/xk/"
+    Origin: "http://scxk.nmpa.gov.cn:81"
+    Sec-Ch-Ua: '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"'
+    Sec-Ch-Ua-Mobile: "?0"
+    Sec-Ch-Ua-Platform: '"Windows"'
+
+# 签名算法配置
+signature:
+  secret_key: nmpasecret2020
+  algorithm: sorted_params_md5
+  validation: strict
+
+# 反检测配置
+anti_detection:
+  # 完整浏览器指纹
+  browser_fingerprint:
+    canvas: true
+    webgl: true
+    audio: true
+    fonts: true
+    timezone: "Asia/Shanghai"
+    language: "zh-CN"
+    screen_resolution: "1920x1080"
+    
+  # 用户行为模拟
+  human_simulation:
+    typing_speed: random
+    mouse_movement: realistic
+    scroll_pattern: natural
+    click_delay: variable
+    reading_time: realistic
+    
+  # 时间模式
+  timing_patterns:
+    work_hours: true
+    request_intervals: variable
+    session_duration: realistic
+
+# 错误处理
+error_handling:
+  log_level: detailed
+  debug_mode: true
+  save_failed_responses: true
+  continue_on_error: false
+  
+# 数据质量控制
+quality_control:
+  validate_structure: true
+  required_fields: [name, approval_number, company]
+  deduplication: true
+  data_integrity_check: true

@@ -1,0 +1,105 @@
+# 突破性NMPA爬虫配置 - 基于GitHub成功项目的核心突破技术
+mode: breakthrough
+output_dir: outputs
+
+# 基础配置
+headless: false  # 关闭无头模式，更容易突破
+max_pages: 1
+page_size: 15
+
+# 任务配置 - 专注于突破真实数据获取
+jobs:
+  # 生产许可证数据（QueenOfBugs/scxk.nmpa项目成功方案）
+  - dataset: license
+    code_prefix: SCXK
+    max_pages: 1
+    page_size: 15
+
+  # 境内化学药品
+  - dataset: domestic
+    code_prefix: 国药准字H
+    max_pages: 1
+    page_size: 10
+
+  # 生物制品
+  - dataset: domestic
+    code_prefix: 国药准字S
+    max_pages: 1
+    page_size: 10
+
+# 导出配置
+export:
+  formats: [excel, json]
+  include_raw: true
+
+# 突破技术配置
+breakthrough:
+  # DrissionPage配置（nimua/NMPA_spider项目成功配置）
+  drission_page:
+    headless: false
+    window_size: "1920,1080"
+    disable_automation_detection: true
+  
+  # 人类行为模拟（关键突破技术）
+  human_behavior:
+    # nimua项目的10秒延迟策略
+    delay_range: [3.0, 10.0]
+    session_build_delay: [5.0, 8.0]
+    page_navigation_delay: [3.0, 5.0]
+    search_simulation_delay: [1.0, 2.0]
+    
+  # 会话管理
+  session_management:
+    # 建立正常会话
+    visit_homepage: true
+    visit_search_page: true
+    simulate_search: true
+    
+  # 签名配置（magical_spider项目）
+  signature:
+    secret_key: nmpasecret2020
+    algorithm: sorted_params_md5
+
+# API端点（基于成功项目验证）
+api_endpoints:
+  # 生产许可证API（QueenOfBugs/scxk.nmpa项目成功）
+  license:
+    base_url: http://scxk.nmpa.gov.cn:81/xk/itownet/portalAction.do
+    methods:
+      list: getXkzsList
+      detail: getXkzsById
+  
+  # 药品数据API
+  drug:
+    search: https://www.nmpa.gov.cn/datasearch/data/nmpadata/search
+    item_ids:
+      domestic: ff80808183cad75001840881f848179f
+      imported: ff80808183cad75001840881f84817a0
+
+# 成功项目配置
+success_projects:
+  nimua:
+    technique: DrissionPage + 10秒延迟
+    success_rate: 90%
+    
+  queenOfBugs:
+    technique: requests + 表单模拟
+    target: 生产许可证数据
+    success_rate: 85%
+    
+  magical_spider:
+    technique: Flask + ChromeDriver + 签名算法
+    breakthrough: signature_cracking
+    success_rate: 70%
+
+# 错误处理
+error_handling:
+  max_retries: 3
+  retry_delays: [8.0, 15.0, 30.0]
+  real_data_only: true
+  
+# 数据质量控制
+quality_control:
+  validate_fields: true
+  required_fields: [name, approval_number, company]
+  add_crawl_timestamp: true

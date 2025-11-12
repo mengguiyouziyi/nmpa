@@ -1,0 +1,159 @@
+# 终极突破NMPA爬虫配置 - Playwright + 高级反检测技术
+mode: ultimate_stealth  # 终极隐匿模式 - 企业级反检测技术
+headless: true            # 使用headless模式
+max_pages: 1             # 每个查询最大翻页数
+page_size: 20            # 每页条数
+delay_min_ms: 3000       # 最小延迟 (毫秒)
+delay_max_ms: 8000       # 最大延迟 (毫秒)
+retry: 3                 # 请求失败重试次数
+export_format: excel     # excel | csv | both
+output_dir: outputs      # 导出目录
+
+# Playwright配置
+playwright:
+  browser: "chromium"     # 浏览器类型
+  headless: false         # 显示模式（调试用）
+  timeout: 60000          # 页面超时 (毫秒)
+  viewport: "1366x768"    # 视窗大小
+
+# 高级反检测配置
+anti_detection:
+  # 浏览器指纹伪装
+  browser_fingerprint:
+    user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    accept_language: "zh-CN,zh;q=0.9,en;q=0.8"
+    accept_encoding: "gzip, deflate, br, zstd"
+    platform: "Win32"
+    sec_ch_ua: '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"'
+    sec_ch_ua_mobile: "?0"
+    sec_ch_ua_platform: '"Windows"'
+
+  # 系统环境伪装
+  system_fingerprint:
+    timezone: "Asia/Shanghai"
+    geolocation:
+      latitude: 39.9042
+      longitude: 116.4074
+    color_scheme: "light"
+    reduced_motion: "reduce"
+    permissions: ["geolocation", "notifications"]
+
+  # 反检测脚本
+  anti_detection_scripts:
+    remove_automation: true      # 移除自动化标识
+    fake_chrome_object: true     # 伪造Chrome对象
+    fake_plugins: true           # 伪造插件
+    fake_languages: true         # 伪造语言
+    fake_permissions: true       # 伪造权限API
+    fake_webgl: true             # 伪造WebGL
+    fake_canvas: true            # 伪造Canvas指纹
+
+# 412绕过策略
+bypass_412:
+  strategies:
+    - name: "直接访问"
+      method: "direct"
+      timeout: 30000
+    - name: "延迟访问"
+      method: "delayed"
+      delay_range: [5, 10]
+      timeout: 30000
+    - name: "JavaScript跳转"
+      method: "javascript"
+      timeout: 30000
+    - name: "iframe绕过"
+      method: "iframe"
+      timeout: 30000
+
+# 人类行为模拟
+human_behavior:
+  mouse_movement:
+    enabled: true
+    speed_range: [100, 300]
+    random_factor: 0.3
+
+  scrolling:
+    enabled: true
+    scroll_range: [100, 300]
+    return_scroll: true
+
+  typing_simulation:
+    enabled: true
+    speed_range: [50, 150]
+    mistake_rate: 0.02
+
+  reading_time:
+    min_seconds: 2
+    max_seconds: 8
+
+# 数据提取配置
+extraction:
+  methods:
+    - "table_extraction"       # 表格提取
+    - "list_extraction"        # 列表提取
+    - "javascript_extraction"  # JavaScript提取
+
+  extraction_patterns:
+    approval_number: "国药准字([HFJZTB]\\d{8})"
+    company_name: "[^，。\\n]*(?:股份有限公司|有限公司|制药厂|药业)[^，。\\n]*"
+    drug_name: "[^\\n]{2,50}"
+
+  validation:
+    require_approval: true     # 必须有批准文号
+    min_name_length: 2         # 最小名称长度
+    company_keywords:          # 公司关键词验证
+      - "股份有限公司"
+      - "有限公司"
+      - "制药厂"
+      - "药业"
+
+# 操作流程配置
+workflow:
+  steps:
+    - name: "访问首页"
+      url: "https://www.nmpa.gov.cn/"
+      wait_time: [3, 6]
+      human_behavior: true
+
+    - name: "访问数据查询"
+      url: "https://www.nmpa.gov.cn/datasearch/home?htmlType=1"
+      wait_time: [5, 8]
+      human_behavior: true
+
+    - name: "选择境内生产药品"
+      selectors:
+        - "text=境内生产药品"
+        - "text=境内"
+        - "text=生产药品"
+      wait_time: [2, 4]
+      human_behavior: true
+
+    - name: "选择药品类型"
+      selectors:
+        - "text=H"
+        - "text=化药"
+        - "text=化学药品"
+      wait_time: [1, 2]
+
+    - name: "执行搜索"
+      selectors:
+        - "text=搜索"
+        - "text=查询"
+        - "input[type='submit']"
+        - "button[type='submit']"
+      wait_time: [5, 8]
+
+    - name: "提取数据"
+      wait_time: [5, 10]
+      extraction_methods: ["table", "list", "javascript"]
+
+# 代理设置 (如需)
+proxy:
+  http: null              # 例如: http://user:pass@host:port
+  https: null             # 例如: http://user:pass@host:port
+
+# 采集任务定义
+jobs:
+  # 终极突破测试
+  - dataset: domestic            # domestic(境内生产药品)
+    code_prefix: "国药准字H"     # H: 化药

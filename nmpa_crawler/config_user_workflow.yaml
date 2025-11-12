@@ -1,0 +1,78 @@
+# 用户工作流NMPA爬虫配置 - 完全按照用户操作流程
+mode: user_workflow          # 用户工作流模式 - 模拟用户真实操作
+headless: false              # 显示浏览器以便观察操作流程
+max_pages: 1                # 每个查询最大翻页数
+page_size: 20               # 每页条数
+delay_min_ms: 2000          # 最小延迟 (毫秒)
+delay_max_ms: 6000          # 最大延迟 (毫秒)
+retry: 3                    # 请求失败重试次数
+export_format: excel        # excel | csv | both
+output_dir: outputs         # 导出目录
+
+# DrissionPage配置
+drission:
+  port: 9228                # Chrome调试端口
+  timeout: 90               # 页面加载超时(秒)
+  window_size: "1920,1080"  # 大屏幕分辨率
+
+# 代理设置 (如需)
+proxy:
+  http: null               # 例如: http://user:pass@host:port
+  https: null              # 例如: http://user:pass@host:port
+
+# 用户工作流配置
+user_workflow:
+  # 操作步骤延迟
+  step_delays:
+    page_load: 5            # 页面加载后等待时间 (秒)
+    element_search: 2       # 元素查找时间 (秒)
+    click_action: 1         # 点击操作后等待 (秒)
+    result_analysis: 5      # 结果分析时间 (秒)
+
+  # 操作流程
+  steps:
+    - name: "访问首页"
+      url: "https://www.nmpa.gov.cn/"
+      delay: 5
+    - name: "点击政务服务门户"
+      selectors: ["text:政务服务门户", "text:政务"]
+      delay: 3
+    - name: "访问数据查询页面"
+      url: "https://www.nmpa.gov.cn/datasearch/home?htmlType=1"
+      delay: 5
+    - name: "选择境内生产药品"
+      selectors: ["text:境内生产药品", "text:境内", "text:生产药品"]
+      delay: 2
+    - name: "选择药品类型H"
+      selectors: ["text:H", "text:化药", "text:化学药品"]
+      delay: 2
+    - name: "点击搜索按钮"
+      selectors: ["text:搜索", "text:查询", "input[type='submit']"]
+      delay: 5
+
+# 数据提取配置
+extraction:
+  methods:
+    - "table_extraction"      # 表格提取
+    - "list_extraction"       # 列表提取
+    - "javascript_extraction" # JavaScript提取
+    - "regex_extraction"      # 正则表达式提取
+
+  validation:
+    required_patterns:
+      - "国药准字"
+      - "股份有限公司|有限公司|制药厂|药业"
+    min_name_length: 2       # 最小名称长度
+    require_approval: true    # 必须有批准文号
+
+# 反检测配置
+anti_detection:
+  basic_removal: true       # 基础检测移除
+  minimal_fingerprint: true  # 最小化浏览器指纹
+  realistic_timing: true     # 真实时间间隔
+
+# 采集任务定义
+jobs:
+  # 用户工作流测试
+  - dataset: domestic            # domestic(境内生产药品)
+    code_prefix: "国药准字H"     # H: 化药

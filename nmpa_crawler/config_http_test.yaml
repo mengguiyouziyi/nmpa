@@ -1,0 +1,38 @@
+# NMPA 爬虫配置 - HTTP引擎V2测试
+mode: http           # 使用HTTP引擎V2
+
+# 签名算法配置
+sign_algorithm: auto # auto | v1_md5 | v2_hmac | v3_aes | v4_composite
+
+# 基础配置
+max_pages: 2         # 测试用少量页面
+page_size: 30        # 每页条数
+retry: 3             # 请求失败重试次数
+export_format: both  # excel | csv | both
+output_dir: outputs_http_test  # 导出目录
+
+# 延迟配置
+delay_min_ms: 200    # 每次请求之间的最小延迟 (毫秒)
+delay_max_ms: 800    # 每次请求之间的最大延迟 (毫秒)
+
+# 并发配置 - 禁用并发进行测试
+concurrent:
+  enabled: false     # 禁用并发处理
+  max_workers: 1
+
+# 代理设置（如需）
+proxy:
+  http: null
+  https: null
+
+# 采集任务定义 - 简化测试
+jobs:
+  - dataset: domestic            # domestic(境内生产药品)
+    code_prefix: "国药准字H"     # H: 化药
+
+# HTTP引擎特定配置
+http_engine:
+  auto_fallback: true
+  algorithm_timeout: 30
+  request_timeout: 30
+  connect_timeout: 10

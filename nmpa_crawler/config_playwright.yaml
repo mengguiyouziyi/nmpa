@@ -1,0 +1,29 @@
+# Playwright引擎配置 - 2024年最新反检测技术
+mode: playwright
+output_dir: outputs
+
+# 基础配置
+headless: true
+max_retries: 3
+request_delay: 2
+
+# 爬取参数
+max_pages: 2
+page_size: 10
+
+# 任务配置
+jobs:
+  - dataset: domestic
+    code_prefix: 国药准字H
+    max_pages: 2
+    page_size: 10
+
+  - dataset: domestic
+    code_prefix: 国药准字S
+    max_pages: 1
+    page_size: 10
+
+# 导出配置
+export:
+  formats: [excel, json]
+  include_raw: true

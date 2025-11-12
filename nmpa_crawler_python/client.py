@@ -122,20 +122,28 @@ class NMPAClient:
                         timeout=10,
                         allow_redirects=True,
                     )
-                    if resp.status_code == 412:
+                    if resp.status_code in {403, 412}:
                         cookies = self.session.cookies.get_dict()
                         if "acw_tc" in cookies:
                             break
-                        time.sleep(wait or 0.8)
+                        cooldown = wait or 0.8
+                        logging.getLogger("nmpa.client").warning(
+                            "warmup %s 返回 %d，%.1f 秒后重试", url, resp.status_code, cooldown
+                        )
+                        time.sleep(cooldown)
                         continue
                     resp.raise_for_status()
                     break
                 except requests.HTTPError as exc:
                     if (
-                        getattr(exc.response, "status_code", None) == 412
+                        getattr(exc.response, "status_code", None) in {403, 412}
                         and attempt < retries
                     ):
-                        time.sleep(wait or 0.8)
+                        cooldown = wait or 0.8
+                        logging.getLogger("nmpa.client").warning(
+                            "warmup %s 捕获 %d，%.1f 秒后重试", url, exc.response.status_code, cooldown
+                        )
+                        time.sleep(cooldown)
                         continue
                     raise
             if wait:

@@ -1,0 +1,44 @@
+# API版NMPA爬虫配置 - 基于最新调研发现的API端点
+mode: api
+output_dir: outputs
+
+# 基础配置
+headless: true
+max_pages: 2
+page_size: 20
+
+# 任务配置
+jobs:
+  - dataset: domestic
+    code_prefix: 国药准字H
+    max_pages: 1
+    page_size: 20
+
+  - dataset: domestic
+    code_prefix: 国药准字S
+    max_pages: 1
+    page_size: 20
+
+# 导出配置
+export:
+  formats: [excel, json]
+  include_raw: true
+
+# API特定配置
+api:
+  # API端点配置
+  endpoints:
+    primary: "/search-api/getData"
+    detail: "/search-api/getDetail"
+    alternative: "/data/nmpadata/search"
+
+  # 请求配置
+  request:
+    timeout: 30
+    max_retries: 3
+    retry_delay: 2
+
+  # 会话配置
+  session:
+    use_playwright: true  # 使用Playwright获取会话信息
+    cookie_refresh: true   # 刷新cookies

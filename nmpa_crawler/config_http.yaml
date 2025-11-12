@@ -1,0 +1,52 @@
+# NMPA 爬虫配置 - HTTP引擎V2（签名算法破解）
+mode: http           # 使用HTTP引擎V2
+
+# 签名算法配置
+sign_algorithm: auto # auto | v1_md5 | v2_hmac | v3_aes | v4_composite
+
+# 基础配置
+max_pages: 10        # 每个查询最大翻页数
+page_size: 30        # 每页条数
+retry: 3             # 请求失败重试次数
+export_format: both  # excel | csv | both
+output_dir: outputs_http  # 导出目录
+
+# 延迟配置（HTTP请求不需要太长延迟）
+delay_min_ms: 200    # 每次请求之间的最小延迟 (毫秒)
+delay_max_ms: 800    # 每次请求之间的最大延迟 (毫秒)
+
+# 并发配置
+concurrent:
+  enabled: true      # 启用并发处理
+  max_workers: 3     # 最大并发线程数
+
+# 代理设置（如需）
+proxy:
+  http: null         # 例如: http://user:pass@host:port
+  https: null        # 例如: http://user:pass@host:port
+
+# 采集任务定义
+jobs:
+  # 例如：同时采集境内H与S、境外H与S
+  - dataset: domestic            # domestic(境内生产药品) | imported(境外生产药品)
+    code_prefix: "国药准字H"     # H: 化药；S: 生物制品
+  - dataset: domestic
+    code_prefix: "国药准字S"
+  - dataset: imported
+    code_prefix: "国药准字H"
+  - dataset: imported
+    code_prefix: "国药准字S"
+
+# HTTP引擎特定配置
+http_engine:
+  # 签名算法切换策略
+  auto_fallback: true          # 失败时自动切换算法
+  algorithm_timeout: 30        # 单个算法测试超时时间(秒)
+
+  # 请求配置
+  request_timeout: 30          # HTTP请求超时时间(秒)
+  connect_timeout: 10          # 连接超时时间(秒)
+
+  # 会话管理
+  session_pool_size: 5         # 会话池大小
+  keep_alive: true             # 保持连接活跃

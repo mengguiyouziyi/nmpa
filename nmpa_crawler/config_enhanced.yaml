@@ -1,0 +1,59 @@
+# 增强版NMPA爬虫配置 - 基于实时网站分析发现的真实token和session数据
+mode: enhanced                # 增强版模式 - 基于真实token分析
+headless: true               # 浏览器是否无头运行
+max_pages: 1                # 每个查询最大翻页数 (专注获取真实数据)
+page_size: 15               # 每页条数 (与NMPA API保持一致)
+delay_min_ms: 3000          # 每次请求之间的最小延迟 (毫秒，基于真实分析)
+delay_max_ms: 8000          # 每次请求之间的最大延迟 (毫秒)
+retry: 6                    # 请求失败重试次数 (增加重试次数)
+export_format: excel        # excel | csv | both
+output_dir: outputs         # 导出目录
+
+# DrissionPage高级配置
+drission:
+  port: 9226                # Chrome调试端口 (避免冲突)
+  timeout: 90               # 页面加载超时(秒)
+  retry_interval: 15        # 重试间隔(秒)
+
+# 代理设置 (如需)
+proxy:
+  http: null               # 例如: http://user:pass@host:port
+  https: null              # 例如: http://user:pass@host:port
+
+# 增强版爬虫特定配置
+enhanced:
+  # 真实token收集配置
+  token_collection:
+    visit_main_site: true          # 访问主站收集token
+    visit_data_search: true       # 访问数据查询页面
+    visit_license_site: true      # 访问生产许可证网站
+    token_analysis_depth: 3       # token分析深度
+
+  # 增强签名配置
+  signature:
+    base_algorithm: "md5"         # 基础算法
+    use_discovered_tokens: true    # 使用发现的token
+    token_length_limit: 16         # token长度限制
+    multi_key_attempts: true       # 多密钥尝试
+
+  # 高级重试配置
+  retry_strategy:
+    max_retries: 5
+    base_delays: [5, 12, 25, 45, 90]  # 基础延迟(秒)
+    random_variation: 3              # 随机变化(秒)
+    exponential_backoff: true        # 指数退避
+
+  # 反检测配置
+  anti_detection:
+    browser_fingerprint: true       # 浏览器指纹伪装
+    user_agent_rotation: false      # User-Agent轮换
+    header_randomization: true      # 头部随机化
+    cookie_sync: true              # Cookie同步
+
+# 采集任务定义
+jobs:
+  # 专注境内生产药品 - 使用增强版技术
+  - dataset: domestic            # domestic(境内生产药品)
+    code_prefix: "国药准字H"     # H: 化药
+  - dataset: domestic
+    code_prefix: "国药准字S"     # S: 生物制品

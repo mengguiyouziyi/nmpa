@@ -1,0 +1,31 @@
+# DrissionPage引擎配置
+mode: drission
+output_dir: outputs
+
+# 基础配置
+headless: true
+max_retries: 3
+request_delay: 2
+page_load_timeout: 30
+
+# 代理配置（可选）
+proxy:
+  # http: "http://proxy-server:port"
+  # https: "http://proxy-server:port"
+
+# 任务配置
+jobs:
+  - dataset: domestic
+    code_prefix: 国药准字H
+    max_pages: 2
+    page_size: 10
+
+  - dataset: domestic
+    code_prefix: 国药准字S
+    max_pages: 1
+    page_size: 10
+
+# 导出配置
+export:
+  formats: [excel, json]
+  include_raw: true
